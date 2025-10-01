@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import Image from "next/image";
@@ -20,22 +21,41 @@ type FlexMode = "yesno" | "text";
 type FlexFieldId =
   | "weatherConditions" | "safetyCompliance" | "safetySignage"
   | "equipmentCondition" | "workmanshipQuality" | "siteHousekeeping"
-  | "qualityRating" | "communicationRating";
+  | "communicationRating";
 
 type FormData = {
-  projectName: string; reportId: string; clientName: string; contractorName: string;
-  inspectorName: string; supervisorName: string; contactPhone: string; contactEmail: string;
-  location: string; inspectionDate: string;
-  weatherTime: string; // NEW: observation time (HH:MM)
+  reportId: string;
+  status: string;
+  clientName: string;
+  contractorName: string;
+  inspectorName: string;
+  supervisorName: string;
+  contactPhone: string;
+  contactEmail: string;
+
+  // Location details
+  location: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+
+  // NEW (needed by Live Preview & PDF static map)
+  lat: string;
+  lon: string;
+
+  inspectionDate: string;
+  weatherTime: string;
 
   temperature: string; humidity: string; windSpeed: string; weatherDescription: string;
 
-  // flexible answers now are yes/no or free text (all string)
+  // flexible answers (yes/no or text)
   weatherConditions: string;
   safetyCompliance: string; safetySignage: string;
   equipmentCondition: string; workmanshipQuality: string;
   siteHousekeeping: string;
-  qualityRating: string; communicationRating: string;
+  communicationRating: string;
 
   // other radios/texts
   numWorkers: string; workerAttendance: string;
@@ -55,9 +75,26 @@ type FormData = {
 export default function Page() {
   /* ---------------- State ---------------- */
   const [form, setForm] = useState<FormData>(() => ({
-    projectName: "", reportId: "", clientName: "", contractorName: "",
-    inspectorName: "", supervisorName: "", contactPhone: "", contactEmail: "",
-    location: "", inspectionDate: "", weatherTime: "",
+    status: "",
+    reportId: "",
+    clientName: "",
+    contractorName: "",
+    inspectorName: "",
+    supervisorName: "",
+    contactPhone: "",
+    contactEmail: "",
+    location: "",
+    streetAddress: "",
+    city: "",
+    state: "",
+    country: "",
+    zipCode: "",
+
+    // init coords empty
+    lat: "",
+    lon: "",
+
+    inspectionDate: "", weatherTime: "",
 
     temperature: "", humidity: "", windSpeed: "", weatherDescription: "",
 
@@ -65,7 +102,7 @@ export default function Page() {
     safetyCompliance: "", safetySignage: "",
     equipmentCondition: "", workmanshipQuality: "",
     siteHousekeeping: "",
-    qualityRating: "", communicationRating: "",
+    communicationRating: "",
 
     numWorkers: "", workerAttendance: "",
     workProgress: "", scheduleCompliance: "", materialAvailability: "",
@@ -83,12 +120,11 @@ export default function Page() {
       equipmentCondition: "yesno",
       workmanshipQuality: "yesno",
       siteHousekeeping: "yesno",
-      qualityRating: "text",           // free-text overall feedback
       communicationRating: "yesno",
     },
   }));
 
-  // per-section photos (with captions)
+  // per-section photos
   const [sectionPhotos, setSectionPhotos] = useState<Record<string, UPhoto[]>>({
     weather: [],
     safety: [],
@@ -97,12 +133,13 @@ export default function Page() {
     incidents: [],
     quality: [],
     notes: [],
-    evidence: [], // main Photo Evidence section
+    evidence: [],
+    additional: [],
   });
 
   const [signatureData, setSignatureData] = useState<string | null>(null);
 
-  // init dates
+  // init dates + geolocated weather (kept; UI unchanged)
   useEffect(() => {
     const now = new Date();
     setForm((f) => ({
@@ -111,20 +148,48 @@ export default function Page() {
       weatherTime: f.weatherTime || "12:00",
       signatureDateTime: f.signatureDateTime || now.toISOString().slice(0, 16),
     }));
+
+    const fetchWeatherData = async () => {
+      if (typeof window !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+          if (!apiKey) return;
+
+          const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+
+          try {
+            const response = await fetch(url);
+            const data: any = await response.json();
+            updateField("temperature", String(Math.round(data?.main?.temp ?? 0)));
+            updateField("humidity", String(Math.round(data?.main?.humidity ?? 0)));
+            updateField("windSpeed", String(Math.round(data?.wind?.speed ?? 0)));
+            updateField("weatherDescription", data?.weather?.[0]?.main ?? "");
+            // Also persist coords so Preview/PDF can render static map immediately
+            updateField("lat", String(latitude));
+            updateField("lon", String(longitude));
+          } catch (error) {
+            console.error("Error fetching weather data:", error);
+          }
+        });
+      }
+    };
+
+    fetchWeatherData();
   }, []);
 
   /* ---------------- Derived ---------------- */
   const filledPercent = useMemo(() => {
     const ids = [
-      "projectName","inspectorName","location","inspectionDate",
+      "status","reportId","inspectorName","location","inspectionDate",
       "temperature","humidity","windSpeed","weatherDescription","weatherConditions",
       "safetyCompliance","safetySignage","numWorkers","workerAttendance",
       "workProgress","scheduleCompliance","materialAvailability",
       "equipmentCondition","maintenanceStatus","workmanshipQuality",
       "specificationCompliance","incidentsHazards","siteHousekeeping","stakeholderVisits",
-      "additionalComments","inspectorSummary","recommendations","qualityRating","communicationRating",
-      "recommendationRating","improvementAreas","signatureDateTime","clientName","contractorName","supervisorName","contactPhone","contactEmail","reportId",
-      "weatherTime",
+      "additionalComments","inspectorSummary","recommendations","communicationRating",
+      "recommendationRating","improvementAreas","signatureDateTime","clientName","contractorName","supervisorName","contactPhone","contactEmail",
+      "streetAddress","city","country","zipCode","weatherTime",
     ] as (keyof FormData)[];
 
     let filled = 0;
@@ -138,8 +203,9 @@ export default function Page() {
   const setPhotoBucket = (key: keyof typeof sectionPhotos) => (p: UPhoto[]) =>
     setSectionPhotos((sp) => ({ ...sp, [key]: p }));
 
-  const updateField = (key: keyof FormData, value: string) =>
-    setForm((f) => ({ ...f, [key]: value }));
+  // IMPORTANT: allow WeatherPanel/MapCard to write lat/lon (keeps types happy)
+  const updateField = (key: keyof FormData | string, value: string) =>
+    setForm((f: any) => ({ ...f, [key]: value }));
 
   const updateFlex = (id: FlexFieldId, mode: FlexMode, value: string) =>
     setForm((f) => ({ ...f, [id]: value, flexibleModes: { ...f.flexibleModes, [id]: mode } }));
@@ -176,12 +242,12 @@ export default function Page() {
           <section className="space-y-6">
             <ProgressBar percent={filledPercent} />
 
-            {/* Project & Contact */}
+            {/* Status */}
             <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
-              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Project & Contact</h2>
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Status</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {([
-                  ["projectName","Project Name","Eg. Tower A Footings"],
+                  ["status","Status","Eg. On Track"],
                   ["reportId","Report ID","Auto/Manual"],
                   ["clientName","Client / Owner","Client name"],
                   ["contractorName","Contractor","Contractor"],
@@ -189,7 +255,12 @@ export default function Page() {
                   ["supervisorName","Site Supervisor","Supervisor name"],
                   ["contactPhone","Phone","+1 555 000 000"],
                   ["contactEmail","Email","name@company.com"],
-                  ["location","Location","Site address"],
+                  ["location","Location","Site or landmark"],
+                  ["streetAddress", "Address", "Street address"],
+                  ["city", "City", "City"],
+                  ["state", "State/Province", "State/Province"],
+                  ["country", "Country", "Country"],
+                  ["zipCode", "Zip Code", "Postal/Zip"],
                 ] as const).map(([id,label,ph]) => (
                   <div key={id}>
                     <label className="block text-sm mb-2" htmlFor={id}>{label}</label>
@@ -197,8 +268,8 @@ export default function Page() {
                       id={id}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
                       placeholder={ph}
-                      value={form[id as keyof FormData] as string}
-                      onChange={(e) => updateField(id as keyof FormData, e.target.value)}
+                      value={(form as any)[id] as string}
+                      onChange={(e) => updateField(id, e.target.value)}
                     />
                   </div>
                 ))}
@@ -240,21 +311,16 @@ export default function Page() {
                 }}
               />
 
-              <div className="mt-4">
-                <FlexibleAnswer
-                  id="weatherConditions"
-                  label="Weather impact today"
-                  mode={form.flexibleModes.weatherConditions}
-                  value={form.weatherConditions}
-                  onChange={(m, v) => updateFlex("weatherConditions", m, v)}
-                />
-              </div>
-
-              {/* Live map + auto weather from coords */}
+              {/* Address → Coords helper (kept; now also stores lat/lon) */}
               <MapCard
                 className="mt-4"
-                address={form.location}
+                address={[form.streetAddress, form.city, form.state, form.country, form.zipCode].filter(Boolean).join(", ") || form.location}
                 onCoords={(lat, lon) => {
+                  // Persist coords for Preview & PDF static maps
+                  updateField("lat", String(lat));
+                  updateField("lon", String(lon));
+
+                  // Your existing Open-Meteo sampling (unchanged UI/behavior)
                   const fetchWeather = async () => {
                     const d = form.inspectionDate
                       ? new Date(`${form.inspectionDate}T${form.weatherTime || "12:00"}`)
@@ -263,7 +329,7 @@ export default function Page() {
                     try {
                       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&hourly=temperature_2m,relative_humidity_2m,windspeed_10m&timezone=auto&start_date=${isoDate}&end_date=${isoDate}`;
                       const resp = await fetch(url);
-                      const json = await resp.json();
+                      const json: any = await resp.json();
 
                       const cw = json?.current_weather;
                       let temperature: any = cw?.temperature ?? "";
@@ -303,6 +369,16 @@ export default function Page() {
                   fetchWeather();
                 }}
               />
+
+              <div className="mt-4">
+                <FlexibleAnswer
+                  id="weatherConditions"
+                  label="Weather impact today"
+                  mode={form.flexibleModes.weatherConditions}
+                  value={form.weatherConditions}
+                  onChange={(m, v) => updateFlex("weatherConditions", m, v)}
+                />
+              </div>
 
               {/* Section photos */}
               <div className="mt-4">
@@ -559,8 +635,8 @@ export default function Page() {
                       id={id} rows={3}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
                       placeholder={ph}
-                      value={form[id as keyof FormData] as string}
-                      onChange={(e) => updateField(id as keyof FormData, e.target.value)}
+                      value={(form as any)[id] as string}
+                      onChange={(e) => updateField(id, e.target.value)}
                     />
                   </div>
                 ))}
@@ -575,60 +651,7 @@ export default function Page() {
               </div>
             </div>
 
-            {/* Quality Survey */}
-            <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
-              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Quality Survey</h2>
-              <div className="space-y-4">
-                <FlexibleAnswer
-                  id="qualityRating"
-                  label="Overall project quality"
-                  mode={form.flexibleModes.qualityRating}
-                  value={form.qualityRating}
-                  onChange={(m, v) => updateFlex("qualityRating", m, v)}
-                />
-                <FlexibleAnswer
-                  id="communicationRating"
-                  label="Team communication"
-                  mode={form.flexibleModes.communicationRating}
-                  value={form.communicationRating}
-                  onChange={(m, v) => updateFlex("communicationRating", m, v)}
-                />
-                <div>
-                  <label className="block text-sm mb-2">Recommend contractor/team for future?</label>
-                  <div className="flex gap-4">
-                    {["Yes","Maybe","No"].map((v) => (
-                      <label key={v} className="flex items-center gap-2">
-                        <input
-                          type="radio" name="recommendationRating" value={v}
-                          checked={form.recommendationRating === v}
-                          onChange={(e) => updateField("recommendationRating", e.target.value)}
-                        />
-                        {v}
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm mb-2" htmlFor="improvementAreas">Areas for improvement</label>
-                  <textarea
-                    id="improvementAreas" rows={3}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
-                    value={form.improvementAreas}
-                    onChange={(e) => updateField("improvementAreas", e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <SectionPhotos
-                  title="Quality Photos"
-                  photos={sectionPhotos.quality}
-                  setPhotos={setPhotoBucket("quality")}
-                />
-              </div>
-            </div>
-
-            {/* Photo Evidence (global) */}
+            {/* Photo Evidence */}
             <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
               <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Photo Evidence</h2>
               <SectionPhotos
@@ -642,7 +665,16 @@ export default function Page() {
               </p>
             </div>
 
-            {/* Signature */}
+            {/* Additional Images */}
+            <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Additional Images (optional)</h2>
+              <SectionPhotos
+                title="Additional Images"
+                photos={sectionPhotos.additional}
+                setPhotos={setPhotoBucket("additional")}
+              />
+            </div>
+
             <SignaturePadBox
               signatureData={signatureData}
               setSignatureData={setSignatureData}
@@ -666,6 +698,7 @@ export default function Page() {
                       ...sectionPhotos.quality,
                       ...sectionPhotos.notes,
                       ...sectionPhotos.evidence,
+                      ...sectionPhotos.additional,
                     ],
                     signatureData
                   )
@@ -675,7 +708,7 @@ export default function Page() {
                 Generate PDF Report
               </button>
               <button
-                onClick={() => generateSummaryPDF(form, summaryPhotos)}
+                onClick={() => generateSummaryPDF(form, summaryPhotos, sectionPhotos.additional)}
                 className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
               >
                 Download Summary (PDF)
@@ -694,11 +727,11 @@ export default function Page() {
             <div className="bg-white rounded-xl p-6 shadow-sm sticky top-6">
               <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Live Preview</h2>
 
-            <ReportPreview
-  form={form}
-  sectionPhotos={sectionPhotos}   // <-- NOT the merged array
-  signatureData={signatureData}
-/>
+              <ReportPreview
+                form={form}
+                sectionPhotos={sectionPhotos}
+                signatureData={signatureData}
+              />
 
               <div className="mt-6">
                 <h3 className="text-lg font-semibold text-kiwi-dark mb-3">Auto-Generated Summary</h3>

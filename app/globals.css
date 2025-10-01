@@ -152,44 +152,46 @@ input[type="text"]:focus,input[type="number"]:focus,input[type="date"]:focus,tex
   .star{ padding:6px; }
 }
 
+/* ---------- Screen vs Print helpers ---------- */
+@media print {
+  .screen-only { display:none !important; }
+}
+@media screen {
+  .print-only { display:none !important; }
+}
+
 /* =========================================================
    PRINT HARDENING — prevents broken layouts in PDF exports
    ========================================================= */
 @media print {
-  /* Normalize */
   html,body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
   *, *::before, *::after { box-sizing:border-box !important; }
 
-  /* Turn off motion & transforms that confuse html2canvas */
   *{ animation:none !important; transition:none !important; transform:none !important; filter:none !important; }
   [style*="position: sticky"], .sticky, [data-sticky]{ position:static !important; top:auto !important; }
 
-  /* Avoid element splitting */
   .avoid-break, .form-section, .photo-item, .weather-card, .pill, .report-preview, .nk-print-section,
   .nk-print-meta, .nk-print-photo-grid, .nk-print-photo-item { break-inside:avoid !important; page-break-inside:avoid !important; }
 
-  /* Typography safety */
   p,li,div,span,td,th{ word-break:break-word; overflow-wrap:anywhere; hyphens:auto; }
 
-  /* Images */
   img, svg{ max-width:100% !important; height:auto !important; page-break-inside:avoid !important; }
 
-  /* Grids → fixed columns to prevent fractional splits */
   .photo-grid{ grid-template-columns:repeat(2,1fr) !important; gap:12px !important; }
   .nk-print-photo-grid{ grid-template-columns:repeat(2,1fr) !important; gap:12px !important; }
 
-  /* Remove shadows/borders that rasterize oddly */
   .form-section, .photo-item, .report-preview{ box-shadow:none !important; }
 
-  /* Hide strictly interactive UI */
   .no-print{ display:none !important; }
 }
 
-/* ---------- Zebra tables for readability in print & screen ---------- */
+/* ---------- Zebra tables ---------- */
 .nk-print-table { width:100%; border-collapse:collapse; }
 .nk-print-table th, .nk-print-table td { padding:10px 12px; border:1px solid #E2E8F0; text-align:left; vertical-align:top; }
 .nk-print-table thead th { background:#F7FAFC; font-weight:700; color:#2D3748; }
 .nk-print-table tbody tr:nth-child(even) { background:#FAFAFA; }
 
-/* Slightly larger section titles for print */
+/* ---------- Minor polish ---------- */
 .nk-print-section-title { font-size:22px; }
+.nk-print-photo-caption { font-weight:600; }
+.nk-print-map { border:1px solid #E2E8F0; }

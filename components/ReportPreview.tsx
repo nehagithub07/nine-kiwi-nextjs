@@ -1,415 +1,321 @@
+// components/ReportPreview.tsx
 "use client";
-
-import Image from "next/image";
-import MapCard from "@/components/MapCard";
+import React, { useMemo } from "react";
 
 type UPhoto = {
   name: string;
   data: string;
   caption?: string;
+  description?: string;
   includeInSummary?: boolean;
+  figureNumber?: number;
+};
+type PhotoBuckets = Record<string, UPhoto[]>;
+
+type Props = {
+  form: any;
+  sectionPhotos?: PhotoBuckets;
+  signatureData?: string | null;
 };
 
-function fmtDate(s?: string) {
-  return s ? new Date(s).toLocaleDateString() : new Date().toLocaleDateString();
+function Line({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value == null) return null;
+  const text = typeof value === "string" ? value.trim() : value;
+  if (text === "" || text == null) return null;
+  return (
+    <div className="flex gap-2 text-sm">
+      <div className="font-semibold">{label}:</div>
+      <div className="text-kiwi-gray">{text}</div>
+    </div>
+  );
 }
 
-// Supports "yesno" or "text" only (no stars)
-function flexAnswer(id: string, form: any) {
-  const mode: "yesno" | "text" = form?.flexibleModes?.[id] || "yesno";
-  const v = (form?.[id] ?? "").toString().trim();
-  return v || "N/A";
+function Section({ title, children }: { title: string; children?: React.ReactNode }) {
+  if (!children) return null;
+  if (Array.isArray(children) && children.every((c) => c == null || c === false)) return null;
+  return (
+    <section className="form-section p-5 avoid-break">
+      <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
 }
 
-function SectionPhotoGrid({ photos }: { photos: UPhoto[] }) {
+function PhotoGrid({ photos }: { photos: UPhoto[] }) {
   if (!photos?.length) return null;
   return (
-    <div className="grid grid-cols-2 gap-6">
-      {photos.map((p, i) => (
-        <figure key={`${p.name}-${i}`} className="border rounded overflow-hidden bg-white">
+    <div className="photo-grid nk-print-photo-grid">
+      {photos.map((p, idx) => (
+        <div key={idx} className="photo-item nk-print-photo-item p-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={p.data} alt={p.name} className="w-full h-40 object-cover" />
-          <figcaption className="text-xs p-2 text-center text-gray-600">
-            {p.caption?.trim() ? p.caption : p.name}
-          </figcaption>
-        </figure>
+          <img
+            src={p.data}
+            alt={p.name || `photo_${idx + 1}`}
+            className="w-full h-40 object-cover rounded-md"
+            crossOrigin="anonymous"
+            referrerPolicy="no-referrer"
+            loading="eager"
+          />
+          <div className="mt-2 text-sm font-semibold nk-print-photo-caption">
+            Figure {p.figureNumber ?? idx + 1}: {p.caption || p.name}
+          </div>
+          {p.description ? (
+            <div className="nk-print-photo-description">{p.description}</div>
+          ) : null}
+        </div>
       ))}
     </div>
   );
 }
 
-export default function ReportPreview({
-  form,
-  sectionPhotos,
-  signatureData,
-}: {
-  form: any;
-  sectionPhotos: Record<
-    "weather" | "safety" | "work" | "equipment" | "incidents" | "quality" | "notes" | "evidence",
-    UPhoto[]
-  >;
-  signatureData: string | null;
-}) {
-  if (!form?.projectName) {
-    return (
-      <div id="reportPreview" className="border border-gray-200 rounded-lg p-6 bg-gray-50 min-h-96">
-        <div className="text-center text-gray-500">
-          <svg className="w-16 h-16 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6" />
-          </svg>
-          <p className="text-lg font-medium">Report Preview</p>
-          <p className="text-sm mt-2">Fill the form to see your report</p>
-        </div>
-      </div>
-    );
+/** Build a static map URL for live preview + PDF (CORS-friendly).
+ *  Prefers lat/lon if present; falls back to address query. */
+function buildStaticMapURL(form: any): string | null {
+  const gkey = process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY?.trim();
+
+  // Prefer coordinates only if they are truly present (not empty strings)
+  const latStr = String(form?.lat ?? "").trim();
+  const lonStr = String(form?.lon ?? "").trim();
+  const lat = Number(latStr);
+  const lon = Number(lonStr);
+  const hasCoords = latStr !== "" && lonStr !== "" && Number.isFinite(lat) && Number.isFinite(lon);
+
+  // Otherwise compose an address string
+  const addressParts = [
+    form?.streetAddress,
+    [form?.city, form?.state].filter(Boolean).join(", "),
+    [form?.country, form?.zipCode].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+
+  const query: string | null =
+    hasCoords
+      ? `${lat},${lon}`
+      : (form?.location && String(form.location).trim()) ||
+        (addressParts.length ? addressParts.join(", ") : "") ||
+        null;
+
+  if (!query) return null;
+
+  if (gkey) {
+    // Google Static Maps (supports coords or address) — crisp for PDF via scale=2
+    return hasCoords
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=15&size=800x400&scale=2&markers=color:green|${lat},${lon}&key=${gkey}`
+      : `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(
+          query
+        )}&zoom=15&size=800x400&scale=2&markers=color:green|${encodeURIComponent(query)}&key=${gkey}`;
   }
 
-  const chips = [
-    form.reportId && `Report # ${form.reportId}`,
-    form.scheduleCompliance && `Schedule: ${form.scheduleCompliance}`,
-    form.materialAvailability && `Materials: ${form.materialAvailability}`,
-    form.incidentsHazards && `Incidents: ${form.incidentsHazards}`,
-  ].filter(Boolean) as string[];
+  // OSM fallback (no key). Coordinate URLs are preferred and more accurate.
+  if (hasCoords) {
+    return `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=15&size=800x400&markers=${lat},${lon},lightgreen-pushpin`;
+  }
+  return `https://staticmap.openstreetmap.de/staticmap.php?center=${encodeURIComponent(
+    query
+  )}&zoom=15&size=800x400&markers=${encodeURIComponent(query)},lightgreen-pushpin`;
+}
+
+export default function ReportPreview({ form, sectionPhotos, signatureData }: Props) {
+  const any = (s?: string) => (typeof s === "string" ? s.trim() : "");
+
+  const addr = useMemo(() => {
+    const parts = [
+      form?.streetAddress,
+      [form?.city, form?.state].filter(Boolean).join(", "),
+      [form?.country, form?.zipCode].filter(Boolean).join(" "),
+    ]
+      .filter((x) => !!x && String(x).trim().length > 0)
+      .join(" • ");
+    return parts;
+  }, [form?.streetAddress, form?.city, form?.state, form?.country, form?.zipCode]);
+
+  const mapURL = useMemo(() => buildStaticMapURL(form), [form]);
+
+  const weatherMetaPresent =
+    any(form?.temperature) || any(form?.humidity) || any(form?.windSpeed) || any(form?.weatherDescription);
+
+  const locationOrAddrPresent = !!(any(form?.location) || addr);
+
+  const buckets: PhotoBuckets = sectionPhotos || {
+    weather: [],
+    safety: [],
+    work: [],
+    equipment: [],
+    incidents: [],
+    quality: [],
+    notes: [],
+    evidence: [],
+    additional: [],
+  };
 
   return (
-    <div id="reportPreview" className="border border-gray-200 rounded-lg p-6 bg-white max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="mb-6 pb-5 border-b-2 border-kiwi-green">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl grid place-items-center">
-                <Image src="/logo.png" alt="nineKiwi_logo" width={40} height={40} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-kiwi-dark">NineKiwi Inspection Report</h1>
-              <p className="text-xs text-kiwi-gray">Generated {new Date().toLocaleString()}</p>
-            </div>
-          </div>
-          <div className="text-right text-sm space-x-1">
-            {chips.map((c, i) => (
-              <span key={i} className="pill inline-block">
-                {c}
-              </span>
-            ))}
-          </div>
+    <div id="reportPreview" className="report-preview p-4 md:p-6 space-y-6">
+      {/* Status & Contact */}
+      <Section title="Status">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Line label="Status" value={any(form?.status)} />
+          <Line label="Report ID" value={any(form?.reportId)} />
+          <Line label="Inspector" value={any(form?.inspectorName)} />
+          <Line label="Supervisor" value={any(form?.supervisorName)} />
+          <Line label="Client" value={any(form?.clientName)} />
+          <Line label="Contractor" value={any(form?.contractorName)} />
+          <Line label="Phone" value={any(form?.contactPhone)} />
+          <Line label="Email" value={any(form?.contactEmail)} />
+          <Line label="Date" value={any(form?.inspectionDate)} />
+          <Line label="Observation Time" value={any(form?.weatherTime)} />
         </div>
-      </div>
+      </Section>
 
-      {/* Project & Contact */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Project & Contact</h2>
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <strong>Project:</strong> {form.projectName || "N/A"}
-          </div>
-          <div>
-            <strong>Date:</strong> {fmtDate(form.inspectionDate)}
-          </div>
-          <div>
-            <strong>Client:</strong> {form.clientName || "N/A"}
-          </div>
-          <div>
-            <strong>Contractor:</strong> {form.contractorName || "N/A"}
-          </div>
-          <div>
-            <strong>Inspector:</strong> {form.inspectorName || "N/A"}
-          </div>
-          <div>
-            <strong>Supervisor:</strong> {form.supervisorName || "N/A"}
-          </div>
-          <div>
-            <strong>Phone:</strong> {form.contactPhone || "N/A"}
-          </div>
-          <div>
-            <strong>Email:</strong> {form.contactEmail || "N/A"}
-          </div>
-          <div className="col-span-2">
-            <strong>Location:</strong> {form.location || "N/A"}
-          </div>
-        </div>
-      </div>
-
-      {/* Weather + Map */}
-      {(form.temperature || form.weatherDescription || form.weatherConditions || form.location) && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Weather</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {form.weatherDescription && (
-              <div>
-                <strong>Description:</strong> {form.weatherDescription}
-              </div>
-            )}
-            {(form.weatherConditions || form.flexibleModes?.weatherConditions) && (
-              <div>
-                <strong>Impact:</strong> {flexAnswer("weatherConditions", form)}
-              </div>
-            )}
-            {form.temperature && (
-              <div>
-                <strong>Temp:</strong> {form.temperature}°C
-              </div>
-            )}
-            {form.humidity && (
-              <div>
-                <strong>Humidity:</strong> {form.humidity}%
-              </div>
-            )}
-            {form.windSpeed && (
-              <div>
-                <strong>Wind:</strong> {form.windSpeed} km/h
-              </div>
-            )}
-            {form.weatherTime && (
-              <div>
-                <strong>Observation Time:</strong> {form.weatherTime}
-              </div>
-            )}
+      {/* Location + Weather + MAP */}
+      {(locationOrAddrPresent || weatherMetaPresent || mapURL) && (
+        <Section title="Location & Weather">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Line label="Location" value={any(form?.location)} />
+            <Line label="Address" value={addr} />
           </div>
 
-          {form.location && (
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold text-kiwi-dark mb-2">Site Map</h3>
-              <MapCard
-                className="rounded-lg overflow-hidden"
-                address={form.location}
-                onCoords={() => {
-                  /* preview is read-only */
-                }}
+          {weatherMetaPresent && (
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Line label="Temperature" value={any(form?.temperature) && `${form.temperature} °C`} />
+              <Line label="Humidity" value={any(form?.humidity) && `${form.humidity} %`} />
+              <Line label="Wind" value={any(form?.windSpeed) && `${form.windSpeed} m/s`} />
+              <Line label="Description" value={any(form?.weatherDescription)} />
+            </div>
+          )}
+
+          {mapURL && (
+            <div className="nk-print-map mt-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={mapURL}
+                alt="Site Location Map"
+                crossOrigin="anonymous"
+                referrerPolicy="no-referrer"
+                loading="eager"
+                // IMPORTANT: let the image define its own height so it actually renders
+                style={{ width: "100%", height: "auto", objectFit: "cover", display: "block" }}
               />
             </div>
           )}
 
-          {/* Weather photos */}
           <div className="mt-4">
-            <SectionPhotoGrid photos={sectionPhotos.weather} />
+            <PhotoGrid photos={buckets.weather || []} />
           </div>
-        </div>
+        </Section>
       )}
 
-      {/* Site Inspection – narrative (no tables) */}
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Site Inspection</h2>
-
-        {/* 2.1 Safety & Compliance */}
-        {(form.safetyCompliance ||
-          form.safetySignage ||
-          form.numWorkers ||
-          form.workerAttendance ||
-          (sectionPhotos.safety?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.1 Safety & Compliance</h3>
-            <div className="text-sm leading-relaxed space-y-2 pl-4">
-              {(form.safetyCompliance || form.safetySignage) && (
-                <p>
-                  <strong>Inspection Results:</strong>{" "}
-                  {form.safetyCompliance && <>PPE & protocol: {flexAnswer("safetyCompliance", form)}. </>}
-                  {form.safetySignage && <>Signage & access: {flexAnswer("safetySignage", form)}.</>}
-                </p>
-              )}
-              {(form.numWorkers || form.workerAttendance) && (
-                <p>
-                  {form.numWorkers && <>Workers on site: {form.numWorkers}. </>}
-                  {form.workerAttendance && <>Attendance/punctuality: {form.workerAttendance}.</>}
-                </p>
-              )}
-            </div>
-            <div className="mt-3">
-              <SectionPhotoGrid photos={sectionPhotos.safety} />
-            </div>
+      {/* Safety */}
+      {(any(form?.safetyCompliance) || any(form?.safetySignage) || (buckets.safety && buckets.safety.length)) && (
+        <Section title="Safety & Compliance">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Line label="Safety Compliance" value={any(form?.safetyCompliance)} />
+            <Line label="Safety Signage" value={any(form?.safetySignage)} />
           </div>
-        )}
-
-        {/* 2.2 Schedule & Progress */}
-        {(form.scheduleCompliance ||
-          form.materialAvailability ||
-          form.workProgress ||
-          (sectionPhotos.work?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.2 Schedule & Progress</h3>
-            <div className="text-sm leading-relaxed space-y-2 pl-4">
-              {(form.scheduleCompliance || form.materialAvailability) && (
-                <p>
-                  <strong>Inspection Results:</strong>{" "}
-                  {form.scheduleCompliance && <>Schedule: {form.scheduleCompliance}. </>}
-                  {form.materialAvailability && <>Materials: {form.materialAvailability}.</>}
-                </p>
-              )}
-              {form.workProgress && (
-                <p>
-                  <strong>Work Progress Summary:</strong>
-                  <br />
-                  <span className="whitespace-pre-line">{form.workProgress}</span>
-                </p>
-              )}
-            </div>
-            <div className="mt-3">
-              <SectionPhotoGrid photos={sectionPhotos.work} />
-            </div>
+          <div className="mt-4">
+            <PhotoGrid photos={buckets.safety || []} />
           </div>
-        )}
-
-        {/* 2.3 Equipment & Maintenance */}
-        {(form.equipmentCondition ||
-          form.maintenanceStatus ||
-          (sectionPhotos.equipment?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.3 Equipment & Maintenance</h3>
-            <div className="text-sm leading-relaxed space-y-2 pl-4">
-              {(form.equipmentCondition || form.maintenanceStatus) && (
-                <p>
-                  <strong>Inspection Results:</strong>{" "}
-                  {form.equipmentCondition && <>Equipment condition: {flexAnswer("equipmentCondition", form)}. </>}
-                  {form.maintenanceStatus && <>Maintenance status: {form.maintenanceStatus}.</>}
-                </p>
-              )}
-            </div>
-            <div className="mt-3">
-              <SectionPhotoGrid photos={sectionPhotos.equipment} />
-            </div>
-          </div>
-        )}
-
-        {/* 2.4 Quality & Workmanship */}
-        {(form.workmanshipQuality ||
-          form.specificationCompliance ||
-          (sectionPhotos.quality?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.4 Quality & Workmanship</h3>
-            <div className="text-sm leading-relaxed space-y-2 pl-4">
-              {(form.workmanshipQuality || form.specificationCompliance) && (
-                <p>
-                  <strong>Inspection Results:</strong>{" "}
-                  {form.workmanshipQuality && <>Workmanship: {flexAnswer("workmanshipQuality", form)}. </>}
-                  {form.specificationCompliance && <>Per specifications: {form.specificationCompliance}.</>}
-                </p>
-              )}
-            </div>
-            <div className="mt-3">
-              <SectionPhotoGrid photos={sectionPhotos.quality} />
-            </div>
-          </div>
-        )}
-
-        {/* 2.5 Site Conditions & Housekeeping */}
-        {(form.siteHousekeeping ||
-          form.incidentsHazards ||
-          form.stakeholderVisits ||
-          (sectionPhotos.incidents?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.5 Site Conditions & Housekeeping</h3>
-            <div className="text-sm leading-relaxed space-y-2 pl-4">
-              {(form.siteHousekeeping || form.incidentsHazards) && (
-                <p>
-                  <strong>Inspection Results:</strong>{" "}
-                  {form.siteHousekeeping && <>Housekeeping: {flexAnswer("siteHousekeeping", form)}. </>}
-                  {form.incidentsHazards && <>Incidents/Hazards: {form.incidentsHazards}.</>}
-                  {form.stakeholderVisits && <> Visits: {form.stakeholderVisits}.</>}
-                </p>
-              )}
-            </div>
-            <div className="mt-3">
-              <SectionPhotoGrid photos={sectionPhotos.incidents} />
-            </div>
-          </div>
-        )}
-
-        {/* 2.6 Additional Observations */}
-        {(form.additionalComments || (sectionPhotos.notes?.length ?? 0) > 0) && (
-          <div className="mb-5">
-            <h3 className="text-lg font-semibold text-kiwi-dark mb-2">2.6 Additional Observations</h3>
-            {form.additionalComments && (
-              <div className="text-sm leading-relaxed pl-4 mb-3">
-                <p className="whitespace-pre-line">{form.additionalComments}</p>
-              </div>
-            )}
-            <SectionPhotoGrid photos={sectionPhotos.notes} />
-          </div>
-        )}
-      </div>
-
-      {/* Quality Survey */}
-      {(form.qualityRating || form.communicationRating || form.recommendationRating || form.improvementAreas) && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Quality Survey</h2>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            {form.qualityRating && (
-              <div>
-                <strong>Overall Quality:</strong> {flexAnswer("qualityRating", form)}
-              </div>
-            )}
-            {form.communicationRating && (
-              <div>
-                <strong>Team Communication:</strong> {flexAnswer("communicationRating", form)}
-              </div>
-            )}
-            {form.recommendationRating && (
-              <div>
-                <strong>Recommend Team:</strong> {form.recommendationRating}
-              </div>
-            )}
-            {form.improvementAreas && (
-              <div className="col-span-2">
-                <strong>Improvement Areas:</strong>{" "}
-                <span className="whitespace-pre-line">{form.improvementAreas}</span>
-              </div>
-            )}
-          </div>
-        </div>
+        </Section>
       )}
 
-      {/* Global Photo Evidence (unchanged UI, just rendered here) */}
-      {(sectionPhotos.evidence?.length ?? 0) > 0 && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Photo Evidence</h2>
-          <SectionPhotoGrid photos={sectionPhotos.evidence} />
-        </div>
+      {/* Personnel & Work */}
+      {(any(form?.numWorkers) ||
+        any(form?.workerAttendance) ||
+        any(form?.workProgress) ||
+        any(form?.scheduleCompliance) ||
+        any(form?.materialAvailability) ||
+        (buckets.work && buckets.work.length)) && (
+        <Section title="Personnel & Work Progress">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Line label="Workers on site" value={any(form?.numWorkers)} />
+            <Line label="Attendance" value={any(form?.workerAttendance)} />
+            <Line label="Schedule" value={any(form?.scheduleCompliance)} />
+            <Line label="Materials" value={any(form?.materialAvailability)} />
+            <Line label="Progress" value={any(form?.workProgress)} />
+          </div>
+          <div className="mt-4">
+            <PhotoGrid photos={buckets.work || []} />
+          </div>
+        </Section>
       )}
 
-      {/* Summary & Recommendations */}
-      {(form.inspectorSummary || form.recommendations) && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">
-            Summary & Recommendations
-          </h2>
-          {form.inspectorSummary && (
-            <div className="mb-3">
-              <strong>Summary:</strong>
-              <br />
-              <span className="whitespace-pre-line">{form.inspectorSummary}</span>
-            </div>
-          )}
-          {form.recommendations && (
-            <div>
-              <strong>Recommendations:</strong>
-              <br />
-              <span className="whitespace-pre-line">{form.recommendations}</span>
-            </div>
-          )}
-        </div>
+      {/* Equipment & Quality */}
+      {(any(form?.equipmentCondition) ||
+        any(form?.maintenanceStatus) ||
+        any(form?.workmanshipQuality) ||
+        any(form?.specificationCompliance) ||
+        (buckets.equipment && buckets.equipment.length) ||
+        (buckets.quality && buckets.quality.length)) && (
+        <Section title="Equipment & Quality">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Line label="Equipment Condition" value={any(form?.equipmentCondition)} />
+            <Line label="Maintenance" value={any(form?.maintenanceStatus)} />
+            <Line label="Workmanship" value={any(form?.workmanshipQuality)} />
+            <Line label="Per Specs" value={any(form?.specificationCompliance)} />
+          </div>
+          <div className="mt-4">
+            <PhotoGrid photos={[...(buckets.equipment || []), ...(buckets.quality || [])]} />
+          </div>
+        </Section>
       )}
 
-      {/* Signature */}
-      {signatureData && (
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">Digital Sign-off</h2>
-          <div className="flex items-center gap-6">
-            <div>
-              <p className="text-sm font-semibold mb-2">Inspector Signature:</p>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={signatureData} className="border rounded" style={{ maxHeight: 100 }} alt="Signature" />
-            </div>
-            <div className="text-sm">
-              <p>
-                <strong>Signed By:</strong> {form.inspectorName || "N/A"}
-              </p>
-              <p>
-                <strong>Date & Time:</strong>{" "}
-                {form.signatureDateTime ? new Date(form.signatureDateTime).toLocaleString() : "N/A"}
-              </p>
+      {/* Incidents & Site */}
+      {(any(form?.incidentsHazards) || any(form?.siteHousekeeping) || any(form?.stakeholderVisits) || (buckets.incidents && buckets.incidents.length)) && (
+        <Section title="Incidents & Site Conditions">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Line label="Incidents / Hazards" value={any(form?.incidentsHazards)} />
+            <Line label="Housekeeping" value={any(form?.siteHousekeeping)} />
+            <Line label="Stakeholder Visits" value={any(form?.stakeholderVisits)} />
+          </div>
+          <div className="mt-4">
+            <PhotoGrid photos={buckets.incidents || []} />
+          </div>
+        </Section>
+      )}
+
+      {/* Notes */}
+      {(any(form?.additionalComments) || any(form?.inspectorSummary) || any(form?.recommendations) || (buckets.notes && buckets.notes.length)) && (
+        <Section title="Notes & Summary">
+          <div className="space-y-2">
+            <Line label="Comments" value={any(form?.additionalComments)} />
+            <Line label="Inspector's Summary" value={any(form?.inspectorSummary)} />
+            <Line label="Recommendations" value={any(form?.recommendations)} />
+          </div>
+          <div className="mt-4">
+            <PhotoGrid photos={buckets.notes || []} />
+          </div>
+        </Section>
+      )}
+
+      {/* Photo Evidence */}
+      {buckets.evidence?.length ? (
+        <Section title="Photo Evidence">
+          <PhotoGrid photos={buckets.evidence} />
+        </Section>
+      ) : null}
+
+      {/* Additional Images */}
+      {buckets.additional?.length ? (
+        <Section title="Additional Images">
+          <PhotoGrid photos={buckets.additional} />
+        </Section>
+      ) : null}
+
+      {/* Signature preview */}
+      {signatureData ? (
+        <Section title="Signature">
+          <div className="signature-pad p-4 rounded-md">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={signatureData} alt="signature" className="max-h-32 object-contain" />
+            <div className="text-sm text-kiwi-gray mt-2">
+              Signed on: {form?.signatureDateTime || "—"}
             </div>
           </div>
-        </div>
-      )}
+        </Section>
+      ) : null}
     </div>
   );
 }
