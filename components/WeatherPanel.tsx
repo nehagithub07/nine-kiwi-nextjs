@@ -12,7 +12,7 @@ type Props = {
   form: any;
   onField: (key: any, v: string)=>void;
   onFetched: (w: WeatherData)=>void;
-  rating: React.ReactNode; // FlexibleRating injected
+  rating?: React.ReactNode;  
 };
 
 export default function WeatherPanel({ form, onField, onFetched, rating }: Props){
