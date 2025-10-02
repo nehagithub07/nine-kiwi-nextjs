@@ -708,16 +708,16 @@ export default function Page() {
                 Generate PDF Report
               </button>
               <button
-                onClick={() => generateSummaryPDF(form, summaryPhotos, sectionPhotos.additional)}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
+                onClick={() => generateSummaryPDF(form, summaryPhotos, sectionPhotos.additional, signatureData)}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
               >
-                Download Summary (PDF)
+                Generate Summary PDF
               </button>
               <button
                 onClick={() => generateSummaryWord(form, summaryPhotos)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
+                className="flex-1 bg-slate-600 hover:bg-slate-700 text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
               >
-                Download Summary (Word)
+                Generate Word Report
               </button>
             </div>
           </section>

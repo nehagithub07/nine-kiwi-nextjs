@@ -84,10 +84,10 @@ const SAFE_PRINT_CSS = `
 .nk-print-content { font-size: 11px; line-height: 1.7; color: #4A5568; }
 
 .nk-print-map {
-  width: 100%; height: 200px; border-radius: 8px; border: 2px solid #E2E8F0; margin-top: 12px; overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  width: 100%; min-height: 250px; border-radius: 8px; border: 2px solid #E2E8F0; margin-top: 12px; overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; justify-content: center;
 }
-.nk-print-map img { width: 100%; height: 100%; object-fit: cover; }
+.nk-print-map img { width: 100%; height: auto; object-fit: contain; display: block; }
 
 .nk-print-table { width: 100%; border-collapse: collapse; margin: 10px 0; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
 .nk-print-table th, .nk-print-table td { padding: 8px 10px; border: 1px solid #E2E8F0; text-align: left; vertical-align: top; font-size: 10px; }
@@ -98,7 +98,7 @@ const SAFE_PRINT_CSS = `
   background: #fff; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; text-align: center; page-break-inside: avoid;
   box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: transform 0.2s;
 }
-.nk-print-photo-item img { width: 100%; height: auto; max-height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 6px; }
+.nk-print-photo-item img { width: 100%; height: auto; max-height: 240px; object-fit: contain; border-radius: 6px; margin-bottom: 6px; }
 .nk-print-photo-caption { font-size: 9px; color: #718096; font-weight: 500; word-break: break-word; line-height: 1.3; }
 .nk-print-photo-description {
   margin-top: 8px; font-size: 10px; color: #4A5568; text-align: left; line-height: 1.4; padding: 8px; background: #F7FAFC; border-radius: 4px;
@@ -184,11 +184,12 @@ async function waitForImages(root: HTMLElement): Promise<void> {
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default as any;
   const canvas: HTMLCanvasElement = await html2canvas(node, {
-    scale: 2,
+    scale: 3,
     useCORS: true,
+    allowTaint: true,
     backgroundColor: "#ffffff",
     logging: false,
-    imageTimeout: 0,
+    imageTimeout: 15000,
     scrollX: 0,
     scrollY: 0,
     windowWidth: Math.max(node.scrollWidth, node.clientWidth),
@@ -201,12 +202,12 @@ function canvasToDataUrlSafe(
   canvas: HTMLCanvasElement
 ): { data: string; type: "PNG" | "JPEG" } {
   try {
-    const png = canvas.toDataURL("image/png");
+    const png = canvas.toDataURL("image/png", 1.0);
     if (png.startsWith("data:image/png")) return { data: png, type: "PNG" };
   } catch {
     /* ignore */
   }
-  const jpg = canvas.toDataURL("image/jpeg", 0.95);
+  const jpg = canvas.toDataURL("image/jpeg", 0.98);
   return { data: jpg, type: "JPEG" };
 }
 
@@ -239,19 +240,44 @@ async function renderPaginatedRootToPDF(root: HTMLElement, filename: string): Pr
 }
 
 /** Static map for Summary PDF (PDF-safe). Prefers Google Static Maps when key is present. */
-async function generateMapImage(location: string): Promise<string> {
-  if (!location) return "";
+async function generateMapImage(form: AnyForm): Promise<string> {
+  const latStr = String(form?.lat ?? "").trim();
+  const lonStr = String(form?.lon ?? "").trim();
+  const lat = Number(latStr);
+  const lon = Number(lonStr);
+  const hasCoords = latStr !== "" && lonStr !== "" && Number.isFinite(lat) && Number.isFinite(lon);
+
+  const addressParts = [
+    form?.streetAddress,
+    [form?.city, form?.state].filter(Boolean).join(", "),
+    [form?.country, form?.zipCode].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .map((s: string) => s.trim())
+    .filter(Boolean);
+
+  const query: string | null = hasCoords
+    ? `${lat},${lon}`
+    : (form?.location && String(form.location).trim()) ||
+      (addressParts.length ? addressParts.join(", ") : "") ||
+      null;
+
+  if (!query) return "";
+
   try {
     const gkey = process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY;
-    const encoded = encodeURIComponent(location);
 
     let mapUrl = "";
     if (gkey) {
-      mapUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${encoded}&zoom=15&size=800x400&scale=2&markers=color:green|${encoded}&key=${gkey}`;
+      mapUrl = hasCoords
+        ? `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=15&size=1200x600&scale=2&markers=color:green|${lat},${lon}&key=${gkey}`
+        : `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(query)}&zoom=15&size=1200x600&scale=2&markers=color:green|${encodeURIComponent(query)}&key=${gkey}`;
     } else {
-      mapUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${encoded}&zoom=15&size=800x400&markers=${encoded},lightgreen-pushpin`;
+      mapUrl = hasCoords
+        ? `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=15&size=1200x600&markers=${lat},${lon},lightgreen-pushpin`
+        : `https://staticmap.openstreetmap.de/staticmap.php?center=${encodeURIComponent(query)}&zoom=15&size=1200x600&markers=${encodeURIComponent(query)},lightgreen-pushpin`;
     }
-    return `<img src="${mapUrl}" alt="Site Location Map" style="width:100%;height:100%;object-fit:cover;" crossorigin="anonymous" referrerpolicy="no-referrer" />`;
+    return `<img src="${mapUrl}" alt="Site Location Map" style="width:100%;height:auto;object-fit:contain;display:block;" crossorigin="anonymous" referrerpolicy="no-referrer" />`;
   } catch (error) {
     console.error("Map generation error:", error);
     return "";
@@ -319,7 +345,7 @@ async function generateEnhancedSummaryHTML(
   const inspector = sanitizeText(form.inspectorName || form.inspector || "");
 
   const summaryHTML = enrichSummary(autoSummary);
-  const mapHTML = location ? await generateMapImage(location) : "";
+  const mapHTML = await generateMapImage(form);
 
   const addressText =
     fmtAddressFromSplit(form) ||
@@ -341,9 +367,7 @@ async function generateEnhancedSummaryHTML(
         <div class="nk-print-logo-wrapper">
           ${logoHTML}
           <div>
-            <h1 class="nk-print-title">${sanitizeText(
-              form.reportTitle || "NineKiwi Inspection Report"
-            )}</h1>
+            <h1 class="nk-print-title">NineKiwi Inspection Report</h1>
             <div class="nk-print-subtitle">Professional Site Inspection & Assessment</div>
           </div>
         </div>
@@ -437,11 +461,13 @@ async function generateEnhancedSummaryHTML(
           ${photos
             .map((p, i) => {
               const figureNum = p.figureNumber || i + 1;
+              const caption = sanitizeText(p.caption || p.name || `Photo ${figureNum}`);
+              const description = p.description ? sanitizeText(p.description) : "";
               return `
               <div class="nk-print-photo-item">
-                <img src="${p.data}" alt="${sanitizeText(p.name)}" />
-                <div class="nk-print-photo-caption">Figure ${figureNum}: ${sanitizeText(p.caption || p.name)}</div>
-                ${p.description ? `<div class="nk-print-photo-description">${sanitizeText(p.description)}</div>` : ""}
+                <img src="${p.data}" alt="${caption}" />
+                <div class="nk-print-photo-caption">Figure ${figureNum}: ${caption}</div>
+                ${description ? `<div class="nk-print-photo-description"><strong>Description:</strong> ${description}</div>` : ""}
               </div>`;
             })
             .join("")}
@@ -460,11 +486,13 @@ async function generateEnhancedSummaryHTML(
           ${additionalPhotos
             .map((p, i) => {
               const figureNum = (photos?.length || 0) + i + 1;
+              const caption = sanitizeText(p.caption || p.name || `Photo ${figureNum}`);
+              const description = p.description ? sanitizeText(p.description) : "";
               return `
               <div class="nk-print-photo-item">
-                <img src="${p.data}" alt="${sanitizeText(p.name)}" />
-                <div class="nk-print-photo-caption">Figure ${figureNum}: ${sanitizeText(p.caption || p.name)}</div>
-                ${p.description ? `<div class="nk-print-photo-description">${sanitizeText(p.description)}</div>` : ""}
+                <img src="${p.data}" alt="${caption}" />
+                <div class="nk-print-photo-caption">Figure ${figureNum}: ${caption}</div>
+                ${description ? `<div class="nk-print-photo-description"><strong>Description:</strong> ${description}</div>` : ""}
               </div>`;
             })
             .join("")}
@@ -481,20 +509,21 @@ async function generateEnhancedSummaryHTML(
           <table class="nk-print-table">
             <tbody>
               <tr>
-                <td style="width:50%">
+                <td style="width:50%;vertical-align:top;">
                   <strong>Inspector</strong><br/>
                   <div style="margin-top: 8px;">
-                    Name: ${inspector || "—"}<br/>
-                    Designation: ${sanitizeText(form.inspectorDesignation || "—")}<br/>
-                    ID: ${sanitizeText(form.inspectorId || "—")}
+                    ${inspector ? `<div style="margin-bottom:8px;">Name: <strong>${inspector}</strong></div>` : ""}
+                    ${form.inspectorDesignation ? `Designation: ${sanitizeText(form.inspectorDesignation)}<br/>` : ""}
+                    ${form.inspectorId ? `ID: ${sanitizeText(form.inspectorId)}<br/>` : ""}
+                    ${form.signatureData ? `<div style="margin-top:12px;border:1px solid #E2E8F0;padding:8px;border-radius:6px;background:#F7FAFC;"><img src="${form.signatureData}" alt="Inspector Signature" style="max-width:200px;max-height:80px;object-fit:contain;"/></div>` : ""}
                   </div>
                 </td>
-                <td style="width:50%">
+                <td style="width:50%;vertical-align:top;">
                   <strong>Supervisor / Client Acknowledgment</strong><br/>
                   <div style="margin-top: 8px;">
                     Name: ${sanitizeText(form.supervisorName || "—")}<br/>
-                    Designation: ${sanitizeText(form.supervisorDesignation || "—")}<br/>
-                    ID: ${sanitizeText(form.clientId || "—")}
+                    ${form.supervisorDesignation ? `Designation: ${sanitizeText(form.supervisorDesignation)}<br/>` : ""}
+                    ${form.clientId ? `ID: ${sanitizeText(form.clientId)}<br/>` : ""}
                   </div>
                 </td>
               </tr>
@@ -559,13 +588,15 @@ export async function generateFullReportPDF(
 export async function generateSummaryPDF(
   form: AnyForm,
   summaryPhotos: AnyPhoto[],
-  additionalPhotos: AnyPhoto[] = []
+  additionalPhotos: AnyPhoto[] = [],
+  signatureData?: string | null
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
   const autoSummary = document.getElementById("autoSummary")?.innerHTML || "";
+  const formWithSignature = signatureData ? { ...form, signatureData } : form;
   const html = await generateEnhancedSummaryHTML(
-    form,
+    formWithSignature,
     autoSummary,
     summaryPhotos,
     additionalPhotos

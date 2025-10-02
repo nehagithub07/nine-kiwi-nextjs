@@ -188,7 +188,7 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Pr
           )}
 
           {mapURL && (
-            <div className="nk-print-map mt-4">
+            <div className="nk-print-map mt-4" style={{ minHeight: "250px", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={mapURL}
@@ -196,8 +196,7 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Pr
                 crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 loading="eager"
-                // IMPORTANT: let the image define its own height so it actually renders
-                style={{ width: "100%", height: "auto", objectFit: "cover", display: "block" }}
+                style={{ width: "100%", height: "auto", objectFit: "contain", display: "block" }}
               />
             </div>
           )}
