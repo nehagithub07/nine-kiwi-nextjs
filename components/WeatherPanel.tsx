@@ -1,4 +1,3 @@
-// components/WeatherPanel.tsx
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,12 +15,37 @@ type Props = {
   onFetched?: (w: WeatherOut) => void;
 };
 
-function toTitleCase(s: string) {
-  return s.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase());
+function getWeatherDescription(code: number): string {
+  const codes: Record<number, string> = {
+    0: "Clear sky",
+    1: "Mainly clear",
+    2: "Partly cloudy",
+    3: "Overcast",
+    45: "Foggy",
+    48: "Depositing rime fog",
+    51: "Light drizzle",
+    53: "Moderate drizzle",
+    55: "Dense drizzle",
+    61: "Slight rain",
+    63: "Moderate rain",
+    65: "Heavy rain",
+    71: "Slight snow",
+    73: "Moderate snow",
+    75: "Heavy snow",
+    77: "Snow grains",
+    80: "Slight rain showers",
+    81: "Moderate rain showers",
+    82: "Violent rain showers",
+    85: "Slight snow showers",
+    86: "Heavy snow showers",
+    95: "Thunderstorm",
+    96: "Thunderstorm with slight hail",
+    99: "Thunderstorm with heavy hail",
+  };
+  return codes[code] || "Unknown";
 }
 
 export default function WeatherPanel({ form, onField, onFetched }: Props) {
-  const API_KEY = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const debTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -36,6 +60,10 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
 
   const pushToForm = useCallback(
     (w: WeatherOut) => {
+      if (typeof onField !== "function") {
+        console.error("onField is not a function:", onField);
+        return;
+      }
       onField("temperature", String(w.temperature));
       onField("humidity", String(w.humidity));
       onField("windSpeed", String(w.windSpeed));
@@ -45,33 +73,9 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     [onField, onFetched]
   );
 
-  const parseOneCall = (data: any): WeatherOut => {
-    const c = data?.current || data;
-    const descRaw =
-      c?.weather && Array.isArray(c.weather) && c.weather[0]?.description
-        ? c.weather[0].description
-        : c?.weather && Array.isArray(c.weather) && c.weather[0]?.main
-        ? c.weather[0].main
-        : "";
-    const temp = Number(c?.temp);
-    const hum = Number(c?.humidity);
-    const wind = Number(c?.wind_speed);
-
-    return {
-      temperature: Number.isFinite(temp) ? Math.round(temp) : 0,
-      humidity: Number.isFinite(hum) ? Math.round(hum) : 0,
-      windSpeed: Number.isFinite(wind) ? Math.round(wind) : 0,
-      description: toTitleCase(descRaw || ""),
-    };
-  };
-
-  const fetchOneCallByCoords = useCallback(
+  const fetchWeatherByCoords = useCallback(
     async (lat: number, lon: number) => {
       setErrMsg(null);
-      if (!API_KEY) {
-        setErrMsg("Missing NEXT_PUBLIC_OPENWEATHER_API_KEY.");
-        return;
-      }
       if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
         setErrMsg("Invalid coordinates.");
         return;
@@ -83,86 +87,74 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
 
       setLoading(true);
       try {
-        // Try One Call 3.0
-        let resp = await fetch(
-          `https://api.openweathermap.org/data/3.0/onecall?lat=${lat}&lon=${lon}&exclude=hourly,daily,minutely,alerts&units=metric&appid=${API_KEY}`
+        const resp = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&temperature_unit=celsius&wind_speed_unit=ms`
         );
-        let data = await resp.json();
 
-        if (!resp.ok || (typeof data?.cod !== "undefined" && Number(data.cod) >= 400)) {
-          // Fallback to Current Weather v2.5 (works on free tier)
-          resp = await fetch(
-            `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${API_KEY}`
-          );
-          data = await resp.json();
-
-          if (!resp.ok || (typeof data?.cod !== "undefined" && Number(data.cod) >= 400)) {
-            setErrMsg(
-              typeof data?.message === "string"
-                ? `Weather error: ${data.message}`
-                : `Weather API error (HTTP ${resp.status}).`
-            );
-            return;
-          }
-
-          const w: WeatherOut = {
-            temperature: Math.round(Number(data?.main?.temp ?? 0)),
-            humidity: Math.round(Number(data?.main?.humidity ?? 0)),
-            windSpeed: Math.round(Number(data?.wind?.speed ?? 0)),
-            description: toTitleCase(String(data?.weather?.[0]?.description ?? "")),
-          };
-          pushToForm(w);
+        if (!resp.ok) {
+          setErrMsg(`Weather API error (HTTP ${resp.status}).`);
           return;
         }
 
-        // Success via One Call 3.0
-        const w = parseOneCall(data);
+        const data = await resp.json();
+        const current = data?.current;
+
+        if (!current) {
+          setErrMsg("No weather data available for this location.");
+          return;
+        }
+
+        const w: WeatherOut = {
+          temperature: Math.round(Number(current.temperature_2m ?? 0)),
+          humidity: Math.round(Number(current.relative_humidity_2m ?? 0)),
+          windSpeed: Math.round(Number(current.wind_speed_10m ?? 0)),
+          description: getWeatherDescription(Number(current.weather_code ?? 0)),
+        };
+
         pushToForm(w);
-      } catch {
+      } catch (error) {
+        console.error("Weather fetch error:", error);
         setErrMsg("Failed to fetch weather.");
       } finally {
         setLoading(false);
       }
     },
-    [API_KEY, pushToForm, loading]
+    [pushToForm, loading]
   );
 
-  // Geocode address → coords (Open-Meteo free geocoder), then fetch weather
   const fetchByAddress = useCallback(async () => {
     setErrMsg(null);
-
-    if (!API_KEY) {
-      setErrMsg("Missing NEXT_PUBLIC_OPENWEATHER_API_KEY.");
-      return;
-    }
     const q = addressQuery;
     if (!q) return;
 
     setLoading(true);
     try {
-      const geo = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1`);
+      const geo = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`
+      );
       const j = await geo.json();
       const first = j?.results?.[0];
+
       if (!first) {
         setErrMsg("Could not geocode address.");
+        setLoading(false);
         return;
       }
+
       const lat = Number(first.latitude);
       const lon = Number(first.longitude);
 
-      // persist coords so Map/Preview/PDF stay in sync
       onField("lat", String(lat));
       onField("lon", String(lon));
 
-      await fetchOneCallByCoords(lat, lon);
-    } catch {
+      await fetchWeatherByCoords(lat, lon);
+    } catch (error) {
+      console.error("Geocoding error:", error);
       setErrMsg("Geocoding failed.");
-    } finally {
       setLoading(false);
     }
-  }, [API_KEY, addressQuery, fetchOneCallByCoords, onField]);
+  }, [addressQuery, fetchWeatherByCoords, onField]);
 
-  // Debounced AUTO fetch when address fields change
   useEffect(() => {
     if (!addressQuery) return;
     if (debTimer.current) clearTimeout(debTimer.current);
@@ -172,14 +164,13 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     };
   }, [addressQuery, fetchByAddress]);
 
-  // AUTO fetch when lat/lon are present (e.g., from MapCard onCoords)
   useEffect(() => {
     const lat = Number(form?.lat);
     const lon = Number(form?.lon);
     if (Number.isFinite(lat) && Number.isFinite(lon)) {
-      fetchOneCallByCoords(lat, lon);
+      fetchWeatherByCoords(lat, lon);
     }
-  }, [form?.lat, form?.lon, fetchOneCallByCoords]);
+  }, [form?.lat, form?.lon, fetchWeatherByCoords]);
 
   const handleUseMyLocation = useCallback(() => {
     setErrMsg(null);
@@ -193,15 +184,15 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
         const { latitude, longitude } = pos.coords;
         onField("lat", String(latitude));
         onField("lon", String(longitude));
-        fetchOneCallByCoords(latitude, longitude);
+        fetchWeatherByCoords(latitude, longitude);
       },
       () => {
         setErrMsg("Location permission denied.");
         setLoading(false);
       },
-      { enableHighAccuracy: false, timeout: 10000 }
+      { enableHighAccuracy: true, timeout: 10000 }
     );
-  }, [fetchOneCallByCoords, onField]);
+  }, [fetchWeatherByCoords, onField]);
 
   return (
     <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
