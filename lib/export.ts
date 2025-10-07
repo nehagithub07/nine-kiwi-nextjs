@@ -32,7 +32,7 @@ interface WeatherData {
 
 export interface FormData extends WeatherData {
   // identity & contact
-  companyName?: string;            // <-- used on cover + disclaimer
+  companyName?: string;            // used on cover + disclaimer
   nameandAddressOfCompany?: string;
   contactPhone?: string;
   contactEmail?: string;
@@ -43,7 +43,7 @@ export interface FormData extends WeatherData {
   inspectionDate?: string;         // YYYY-MM-DD
   startInspectionTime?: string;    // HH:mm (not shown in header)
   inspectorName?: string;
-  supervisorName?: string;
+  supervisorName?: string;         // optional; tolerated if present
   clientName?: string;
 
   // location (address pieces)
@@ -85,11 +85,11 @@ const PLAIN_CSS = `
   font-family: Arial, Helvetica, sans-serif !important;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.nk-page { width: 210mm; min-height: 297mm; padding: 14mm; page-break-after: always; }
+.nk-page { width: 210mm; min-height: 297mm; padding: 14mm; page-break-after: always; background: #fff; }
 .nk-page:last-child { page-break-after: auto; }
 
 /* header (small, no time) */
-.nk-header { position: sticky; top: 0; margin-bottom: 8mm; }
+.nk-header { margin-bottom: 8mm; }
 .nk-head-line { border-top: 1px solid #000; border-bottom: 1px solid #000; padding: 6px 0; font-size: 11pt; font-weight: 700; text-align: center; }
 
 /* titles */
@@ -106,7 +106,7 @@ const PLAIN_CSS = `
 /* photo layout: 2 per page max; each card vertically stacked */
 .nk-photo-grid { display: grid; grid-template-columns: 1fr; gap: 8mm; }
 .nk-photo-card { border: 1px solid #000; padding: 5mm; }
-.nk-photo-img-wrap { border: 1px solid #000; padding: 2mm; }
+.nk-photo-img-wrap { border: 1px solid #000; padding: 2mm; background: #fff; }
 .nk-photo-img { display:block !important; width:100%; max-height: 95mm; object-fit: contain; background:#fff; }
 .nk-caption { margin-top: 3mm; font-size: 10pt; font-weight: 700; }
 .nk-desc { margin-top: 1mm; font-size: 9.5pt; }
@@ -179,7 +179,7 @@ async function fetchToDataURL(url: string): Promise<string> {
     return await toDataURL(await fetch(proxied, { cache: "no-store" }));
   } catch {}
   try {
-    // weserv
+    // weserv (strip scheme)
     const ws = `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ""))}`;
     return await toDataURL(await fetch(ws, { mode: "cors", cache: "no-cache" }));
   } catch {}
@@ -187,7 +187,6 @@ async function fetchToDataURL(url: string): Promise<string> {
     const cp = `https://corsproxy.io/?${encodeURIComponent(url)}`;
     return await toDataURL(await fetch(cp, { mode: "cors", cache: "no-cache" }));
   } catch {}
-  // give up but don't crash the whole render
   console.warn("Image fetch failed for:", url);
   return "";
 }
@@ -259,7 +258,7 @@ function coverPage(form: FormData): string {
   return `
   <div class="nk-page">
     <div class="nk-header">${headerLine(form)}</div>
-    <div class="nk-title">CONSTRUCTION PROGRESS REPORT</div>
+    <div class="nk-title">NINEKIWI INSPECTION REPORT</div>
     <div class="nk-subtitle">${loc}</div>
 
     <div class="nk-block" style="margin-top: 25mm;">
@@ -293,13 +292,13 @@ function disclaimerPage(form: FormData): string {
   </div>`;
 }
 
-function tocBlock(items: string[]): string {
+function tocBlock(items: string[], form: FormData): string {
   const rows = items
     .map((t, i) => `<tr><td style="width:12mm; text-align:right;"><b>${i + 1}.</b></td><td>${t}</td></tr>`)
     .join("");
   return `
   <div class="nk-page">
-    <div class="nk-header">${items.length ? "" : ""}${headerLine({} as any)}</div>
+    <div class="nk-header">${headerLine(form)}</div>
     <div class="nk-block-title">Table of Contents</div>
     <table class="nk-table"><tbody>${rows}</tbody></table>
   </div>`;
@@ -375,7 +374,7 @@ function obsTable(form: FormData): string {
   )}</tbody></table>`;
 }
 
-/* one photo card (image could be remote; we store in data-image-src to bypass CORS until preload) */
+/* one photo card */
 function photoCard(p: PhotoData, fig: number): string {
   const isRemote = p.data && p.data.startsWith("http");
   const srcAttr = isRemote ? `data-image-src="${p.data}" src=""` : `src="${p.data}"`;
@@ -391,12 +390,7 @@ function photoCard(p: PhotoData, fig: number): string {
   </div>`;
 }
 
-/* Build the 4 sections body:
-   1) Site location & Field Condition Summary (+ table)
-   2) Background (auto)
-   3) Field Observation (text + photos, 2 per page)
-   4) Conclusion (auto) + Signature
-*/
+/* Build the 4 sections body */
 function buildBodyHTML(
   form: FormData,
   backgroundHTML: string,
@@ -442,7 +436,6 @@ function buildBodyHTML(
     })
     .join("");
 
-  // If there were no photos, still produce a single observation page with text
   const fallbackObservation =
     photos.length === 0
       ? `
@@ -473,11 +466,10 @@ function buildBodyHTML(
 /* =========================
    RENDER → PDF
    ========================= */
-async function renderRootToPDF(root: HTMLElement, filename: string, form: FormData): Promise<void> {
+async function renderRootToPDF(root: HTMLElement, filename: string): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const pdf: JsPDFType = new jsPDF("p", "mm", "a4");
 
-  // preload any remote images first
   await waitForImages(root);
 
   const pages = Array.from(root.querySelectorAll<HTMLElement>(".nk-page"));
@@ -512,7 +504,6 @@ export async function generateFullReportPDF(
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
-  // Keep TOC like the sample (4 items)
   const toc = [
     "Site location and Field Condition Summary",
     "Background",
@@ -520,7 +511,7 @@ export async function generateFullReportPDF(
     "Conclusion",
   ];
 
-  // flatten photos from buckets you use in the UI
+  // flatten photos in a deterministic order
   const order = ["work", "equipment", "safety", "weather", "quality", "incidents", "notes", "evidence", "additional"];
   const photos: PhotoData[] = [];
   for (const key of order) {
@@ -535,7 +526,7 @@ export async function generateFullReportPDF(
   const html =
     coverPage(formPlus) +
     disclaimerPage(formPlus) +
-    tocBlock(toc) +
+    tocBlock(toc, formPlus) +
     buildBodyHTML(formPlus, bg, photos);
 
   const cleanup = mount(html);
@@ -545,7 +536,7 @@ export async function generateFullReportPDF(
     const nameBase =
       (S(formPlus.reportId) || S(formPlus.clientName) || S(formPlus.location) || "report")
         .replace(/[^\w.-]+/g, "_") || "report";
-    await renderRootToPDF(root, `ninekiwi_report_${nameBase}_${dateStr}.pdf`, formPlus);
+    await renderRootToPDF(root, `ninekiwi_report_${nameBase}_${dateStr}.pdf`);
   } catch (e) {
     console.error("PDF generation failed:", e);
     alert("PDF generation failed. Please try again.");
@@ -554,7 +545,7 @@ export async function generateFullReportPDF(
   }
 }
 
-/** Summary PDF kept for compatibility (same structure as full). You can hide this if you don’t need it. */
+/** Summary PDF (kept for compatibility). Hide its button if you don’t want it in UI. */
 export async function generateSummaryPDF(
   form: FormData,
   summaryPhotos: PhotoData[],
@@ -577,7 +568,7 @@ export async function generateSummaryPDF(
   const html =
     coverPage(formPlus) +
     disclaimerPage(formPlus) +
-    tocBlock(toc) +
+    tocBlock(toc, formPlus) +
     buildBodyHTML(formPlus, bg, photos);
 
   const cleanup = mount(html);
@@ -587,7 +578,7 @@ export async function generateSummaryPDF(
     const nameBase =
       (S(formPlus.reportId) || S(formPlus.clientName) || S(formPlus.location) || "summary")
         .replace(/[^\w.-]+/g, "_") || "summary";
-    await renderRootToPDF(root, `ninekiwi_summary_${nameBase}_${dateStr}.pdf`, formPlus);
+    await renderRootToPDF(root, `ninekiwi_summary_${nameBase}_${dateStr}.pdf`);
   } catch (e) {
     console.error("Summary PDF generation failed:", e);
     alert("Summary PDF generation failed. Please try again.");
