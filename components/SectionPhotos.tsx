@@ -1,64 +1,55 @@
-"use client";
-import React, { useCallback, useRef, useState } from "react";
+// components/SectionPhotos.tsx
 
-export type UPhoto = {
-  name: string;
-  data: string; // data URL
-  includeInSummary?: boolean;
-  caption?: string;
-  figureNumber?: number;
-  description?: string;
-};
+"use client";
+
+import React, { useCallback, useRef, useState } from "react";
+import { UPhoto } from "@/lib/types";
 
 type Props = {
   title: string;
-  photos: UPhoto[];
+  photos: UPhoto[] | undefined;
   setPhotos: (p: UPhoto[]) => void;
   summaryToggle?: boolean;
+  section?: string; // NEW: Track section name
 };
 
-export default function SectionPhotos({ title, photos, setPhotos, summaryToggle }: Props) {
-  // Guard: photos might briefly be non-array if caller mistakenly passed something else
+export default function SectionPhotos({ title, photos, setPhotos, summaryToggle, section }: Props) {
   const safePhotos: UPhoto[] = Array.isArray(photos) ? photos : [];
-  const [counter, setCounter] = useState<number>(safePhotos.length);
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [count, setCount] = useState(safePhotos.length);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  // assign figure numbers after any change
-  const renumber = useCallback((arr: UPhoto[]) => {
-    return arr.map((p, i) => ({ ...p, figureNumber: i + 1 }));
-  }, []);
+  const renumber = useCallback(
+    (arr: UPhoto[]) => arr.map((p, i) => ({ ...p, figureNumber: i + 1, section })),
+    [section]
+  );
 
   const addFiles = useCallback(
     (files: FileList | null) => {
-      if (!files || !files.length) return;
-      const readers: Promise<UPhoto>[] = Array.from(files).map((file) => {
-        return new Promise((res) => {
-          const r = new FileReader();
-          r.onload = () =>
-            res({
-              name: file.name,
-              data: String(r.result || ""),
-            });
-          r.readAsDataURL(file);
-        });
-      });
-
+      if (!files?.length) return;
+      const readers = Array.from(files).map(
+        (file) =>
+          new Promise<UPhoto>((res) => {
+            const r = new FileReader();
+            r.onload = () => res({ name: file.name, data: String(r.result || ""), section });
+            r.readAsDataURL(file);
+          })
+      );
       Promise.all(readers).then((arr) => {
-        const next = renumber([...(safePhotos || []), ...arr]);
+        const next = renumber([...safePhotos, ...arr]);
         setPhotos(next);
-        setCounter(next.length);
+        setCount(next.length);
       });
     },
-    [safePhotos, renumber, setPhotos]
+    [safePhotos, renumber, setPhotos, section]
   );
 
-  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    addFiles(e.target.files);
-    // reset input so same file can be selected again
-    e.currentTarget.value = "";
+  const removeAt = (idx: number) => {
+    const next = renumber(safePhotos.filter((_, i) => i !== idx));
+    setPhotos(next);
+    setCount(next.length);
   };
 
-  const handleCaptureFromCamera = async () => {
+  const captureFromCamera = async () => {
     try {
       const input = document.createElement("input");
       input.type = "file";
@@ -68,129 +59,137 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle 
       input.onchange = (ev: any) => addFiles(ev.target.files);
       input.click();
     } catch {
-      // fallback to normal file picker
       fileRef.current?.click();
     }
   };
 
-  const removeAt = (idx: number) => {
-    const next = renumber((safePhotos || []).filter((_, i) => i !== idx));
-    setPhotos(next);
-    setCounter(next.length);
-  };
-
   return (
-    <div>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-lg font-semibold">{title}</h3>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            className="btn-primary px-3 py-2 text-sm"
-            onClick={() => fileRef.current?.click()}
-          >
-            Add photo
-          </button>
-          <button
-            type="button"
-            className="px-3 py-2 text-sm rounded-lg border text-kiwi-dark hover:bg-kiwi-light"
-            onClick={handleCaptureFromCamera}
-          >
-            Take photo
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={onFileChange}
-          />
-        </div>
+    <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm">
+      <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center justify-between">
+        <span className="flex items-center gap-2">
+          <svg className="w-6 h-6 text-kiwi-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+            />
+          </svg>
+          {title}
+        </span>
+        <span className="text-sm font-normal text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+          {count} {count === 1 ? "photo" : "photos"}
+        </span>
+      </h3>
+
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => fileRef.current?.click()}
+          className="flex-1 bg-kiwi-green text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-600 transition-all hover:scale-105 flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Add photo
+        </button>
+        <button
+          onClick={captureFromCamera}
+          className="flex-1 bg-blue-500 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-all hover:scale-105 flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+            />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Take photo
+        </button>
       </div>
 
-      {/* grid */}
-      <div className="photo-grid">
-        {(safePhotos || []).map((p, idx) => (
-          <div key={idx} className="photo-item p-3 bg-white border rounded-lg">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.currentTarget.value = "";
+        }}
+      />
+
+      <div className="space-y-4">
+        {safePhotos.map((p, idx) => (
+          <div
+            key={idx}
+            className="border-2 border-gray-200 rounded-lg p-4 bg-gray-50 hover:border-kiwi-green transition-colors"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={p.data}
-              alt={p.name || `photo_${idx + 1}`}
-              className="w-full h-40 object-cover rounded-md"
+              alt={p.name}
+              className="w-full h-48 object-cover rounded-lg mb-3 shadow-sm"
             />
 
-            <div className="mt-2 text-sm font-semibold">
-              Figure {p.figureNumber ?? idx + 1}
-            </div>
+            <div className="bg-white p-4 rounded-lg space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-bold text-gray-700 bg-kiwi-green/10 px-3 py-1 rounded-full">
+                  Photo {p.figureNumber ?? idx + 1}
+                </span>
+                <button
+                  onClick={() => removeAt(idx)}
+                  aria-label={`Remove photo ${idx + 1}`}
+                  className="text-red-500 hover:text-red-700 font-semibold text-sm bg-red-50 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
+                >
+                  🗑️ Remove
+                </button>
+              </div>
 
-            <div className="mt-2">
-              <label className="block text-xs mb-1">Caption</label>
-              <input
-                className="w-full px-2 py-1 border rounded"
-                defaultValue={p.caption || ""}
-                onBlur={(e) => {
-                  const val = e.currentTarget.value ?? "";
-                  const next = Array.isArray(safePhotos) ? [...safePhotos] : [];
-                  if (!next[idx]) return;
-                  next[idx] = { ...next[idx], caption: val };
-                  setPhotos(renumber(next));
-                  setCounter(next.length);
-                }}
-              />
-            </div>
+              {/* Caption removed as requested */}
 
-            <div className="mt-2">
-              <label className="block text-xs mb-1">Description</label>
-              <textarea
-                rows={2}
-                className="w-full px-2 py-1 border rounded"
-                defaultValue={p.description || ""}
-                onBlur={(e) => {
-                  const val = e.currentTarget.value ?? "";
-                  const next = Array.isArray(safePhotos) ? [...safePhotos] : [];
-                  if (!next[idx]) return;
-                  next[idx] = { ...next[idx], description: val };
-                  setPhotos(renumber(next));
-                  setCounter(next.length);
-                }}
-              />
-            </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">
+                  📄 Description
+                </label>
+                <textarea
+                  placeholder="Enter detailed description..."
+                  value={p.description ?? ""}
+                  rows={2}
+                  className="w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-kiwi-green focus:border-transparent resize-none"
+                  onChange={(e) => {
+                    const next = [...safePhotos];
+                    next[idx] = { ...next[idx], description: e.currentTarget.value ?? "" };
+                    setPhotos(renumber(next));
+                    setCount(next.length);
+                  }}
+                />
+              </div>
 
-            <div className="mt-2 flex items-center justify-between">
               {summaryToggle ? (
-                <label className="text-xs flex items-center gap-2">
+                <label className="flex items-center gap-2 cursor-pointer bg-green-50 p-2 rounded-lg hover:bg-green-100 transition-colors">
                   <input
                     type="checkbox"
-                    defaultChecked={!!p.includeInSummary}
+                    checked={p.includeInSummary ?? false}
+                    className="w-4 h-4 text-kiwi-green focus:ring-kiwi-green rounded"
                     onChange={(e) => {
-                      const checked = e.currentTarget.checked;
-                      const next = Array.isArray(safePhotos) ? [...safePhotos] : [];
-                      if (!next[idx]) return;
-                      next[idx] = { ...next[idx], includeInSummary: checked };
+                      const next = [...safePhotos];
+                      next[idx] = { ...next[idx], includeInSummary: e.currentTarget.checked };
                       setPhotos(renumber(next));
-                      setCounter(next.length);
+                      setCount(next.length);
                     }}
                   />
-                  Include in summary
+                  <span className="text-sm font-semibold text-gray-700">✅ Include in summary</span>
                 </label>
               ) : (
-                <span />
+                <div className="h-1"></div>
               )}
-
-              <button
-                type="button"
-                className="text-red-600 text-sm"
-                onClick={() => removeAt(idx)}
-                aria-label={`Remove photo ${idx + 1}`}
-              >
-                Remove
-              </button>
             </div>
           </div>
         ))}
       </div>
-
-      <div className="text-xs text-gray-500 mt-2">Total images: {counter}</div>
     </div>
   );
 }
