@@ -1,7 +1,9 @@
 "use client";
-import React, { useMemo } from "react";
-import MapCard from "./MapCard"; // Import MapCard component
 
+import React, { useMemo } from "react";
+import MapCard from "./MapCard";
+
+/* ===== Types (keep aligned with page.tsx) ===== */
 interface UPhoto {
   name: string;
   data: string;
@@ -14,21 +16,20 @@ interface UPhoto {
 type PhotoBuckets = Record<string, UPhoto[]>;
 
 interface FormData {
-  // Status fields
-  status?: string;
+  // Status & meta
+  status?: "In Progress" | "Completed" | "On Track" | "";
   reportId?: string;
   inspectorName?: string;
-  supervisorName?: string;
+  nameandAddressOfCompany?: string;
   clientName?: string;
-  contractorName?: string;
-  companyName?: string;          // 👉 ADDED
+  companyName?: string;
   contactPhone?: string;
   contactEmail?: string;
   inspectionDate?: string;
   startInspectionTime?: string;
 
-  // Location fields
-  location?: string;
+  // Location
+  location?: string; // free-form site address (fallback)
   streetAddress?: string;
   city?: string;
   state?: string;
@@ -37,40 +38,35 @@ interface FormData {
   lat?: string | number;
   lon?: string | number;
 
-  // Weather fields
+  // Weather
   temperature?: string | number;
   humidity?: string | number;
   windSpeed?: string | number;
   weatherDescription?: string;
 
-  // Safety fields
+  // Radios / text
+  weatherConditions?: string;
   safetyCompliance?: string;
   safetySignage?: string;
-
-  // Personnel & Work fields
-  numWorkers?: string | number;
-  workerAttendance?: string;
-  workProgress?: string;
   scheduleCompliance?: string;
   materialAvailability?: string;
+  workerAttendance?: string;
 
-  // Equipment & Quality fields
+  // Other fields
+  numWorkers?: string | number;
   equipmentCondition?: string;
-  maintenanceStatus?: string;
-  workmanshipQuality?: string;
-  specificationCompliance?: string;
 
-  // Incidents fields
-  incidentsHazards?: string;
-  siteHousekeeping?: string;
-  stakeholderVisits?: string;
-
-  // Notes fields
+  // Notes
   additionalComments?: string;
   inspectorSummary?: string;
   recommendations?: string;
 
-  // Signature fields
+  // NEW narrative blocks
+  backgroundManual?: string;
+  backgroundAuto?: string;
+  fieldObservationText?: string;
+
+  // Signature
   signatureDateTime?: string;
 }
 
@@ -80,156 +76,128 @@ interface ReportPreviewProps {
   signatureData?: string | null;
 }
 
-interface LineProps {
-  label: string;
-  value?: React.ReactNode;
+/* ===== Utils ===== */
+function S(v: unknown): string {
+  if (v == null) return "";
+  const s = String(v).trim();
+  return s;
 }
-
-interface SectionProps {
-  title: string;
-  children?: React.ReactNode;
+function has(v: unknown): boolean {
+  return S(v) !== "";
 }
-
-interface PhotoGridProps {
-  photos: UPhoto[];
-}
-
-/* ==========================================
-   UTILITY FUNCTIONS
-   ========================================== */
-
-/** Safely converts value to trimmed string */
-function normalizeString(value: unknown): string {
-  if (value == null) return "";
-  return String(value).trim();
-}
-
-/** Format time to AM/PM display */
-function formatTime(time: string): string {
-  if (!time) return "";
+function formatTime(time?: string): string {
+  const t = S(time);
+  if (!t) return "";
   try {
-    const date = new Date(`2000-01-01T${time}`);
-    return date.toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12: true,
-    });
+    const d = new Date(`2000-01-01T${t}`);
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
   } catch {
-    return time;
+    return t;
   }
 }
 
-/* ==========================================
-   COMPONENT DEFINITIONS
-   ========================================== */
-
-/** Displays a labeled data line */
-const Line = React.memo<LineProps>(({ label, value }) => {
+/* ===== Small primitives ===== */
+const Line = React.memo<{ label: string; value?: React.ReactNode }>(({ label, value }) => {
   if (value == null) return null;
-
-  const text = typeof value === "string" ? value.trim() : value;
+  const text = typeof value === "string" ? S(value) : value;
   if (text === "" || text == null) return null;
 
   return (
-    <div className="flex gap-2 text-sm">
-      <div className="font-semibold">{label}:</div>
-      <div className="text-kiwi-gray">{text}</div>
+    <div className="flex gap-2 text-[13px] leading-5">
+      <div className="font-semibold text-gray-800">{label}:</div>
+      <div className="text-gray-700">{text}</div>
     </div>
   );
 });
 Line.displayName = "Line";
 
-/** Section wrapper with conditional rendering */
-const Section = React.memo<SectionProps>(({ title, children }) => {
+const Section: React.FC<{ title: string; children?: React.ReactNode; className?: string }> = ({
+  title,
+  children,
+  className = "",
+}) => {
   if (!children) return null;
-  if (Array.isArray(children) && children.every((c) => c == null || c === false)) {
-    return null;
-  }
+  if (Array.isArray(children) && children.every((c) => c == null || c === false)) return null;
 
   return (
-    <section className="form-section p-5 avoid-break">
-      <h2 className="text-xl font-semibold text-kiwi-dark mb-3 bg-kiwi-light p-3 rounded">
+    <section
+      className={[
+        "rounded-xl border border-gray-200 bg-white p-5 shadow-sm",
+        "print:shadow-none print:border print:break-inside-avoid",
+        className,
+      ].join(" ")}
+    >
+      <h2 className="mb-3 text-[17px] font-bold tracking-tight text-kiwi-dark text-center">
         {title}
       </h2>
+      <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-4" />
       {children}
     </section>
   );
-});
-Section.displayName = "Section";
+};
 
-/** Photo grid with figure numbering */
-const PhotoGrid = React.memo<PhotoGridProps>(({ photos }) => {
+/* Photo tile with stable aspect & nicer captions */
+const PhotoGrid = React.memo<{ photos: UPhoto[] }>(({ photos }) => {
   if (!photos?.length) return null;
 
   return (
-    <div className="photo-grid nk-print-photo-grid">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {photos.map((photo, idx) => (
-        <div
+        <figure
           key={`${photo.name}-${idx}`}
-          className="photo-item nk-print-photo-item"
+          className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm print:shadow-none"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photo.data}
-            alt={photo.name || `photo_${idx + 1}`}
-            className="w-full max-h-60 object-contain rounded-md bg-white"
-            crossOrigin="anonymous"
-            referrerPolicy="no-referrer"
-            loading="eager"
-          />
-          <div className="nk-print-photo-caption">
-            Figure {photo.figureNumber ?? idx + 1}: {photo.caption || photo.name}
+          <div className="bg-white w-full aspect-[4/3] grid place-items-center p-2">
+            <img
+              src={photo.data}
+              alt={photo.name || `photo_${idx + 1}`}
+              className="max-h-full max-w-full object-contain"
+              crossOrigin="anonymous"
+              referrerPolicy="no-referrer"
+              loading="eager"
+            />
           </div>
-          {photo.description && (
-            <div className="nk-print-photo-description">
-              {photo.description}
+          <figcaption className="px-3 pt-2 pb-3 text-center">
+            <div className="text-xs font-semibold text-gray-800">
+              Figure {photo.figureNumber ?? idx + 1}
+              {photo.caption ? `: ${photo.caption}` : ""}
             </div>
-          )}
-        </div>
+            {has(photo.description) && (
+              <div className="mt-1 text-[12px] text-gray-600 leading-5">{photo.description}</div>
+            )}
+          </figcaption>
+        </figure>
       ))}
     </div>
   );
 });
 PhotoGrid.displayName = "PhotoGrid";
 
-/* ==========================================
-   MAIN COMPONENT
-   ========================================== */
-
-export default function ReportPreview({
-  form,
-  sectionPhotos,
-  signatureData,
-}: ReportPreviewProps): JSX.Element {
-  // Memoized address string
-  const address = useMemo(() => {
+/* ===== Main ===== */
+export default function ReportPreview({ form, sectionPhotos, signatureData }: ReportPreviewProps) {
+  // Postal address, fallback to free-form location
+  const postalAddress = useMemo(() => {
     const parts = [
       form?.streetAddress,
       [form?.city, form?.state].filter(Boolean).join(", "),
       [form?.country, form?.zipCode].filter(Boolean).join(" "),
     ]
-      .filter((x) => !!x && normalizeString(x).length > 0)
+      .filter((x) => has(x))
       .join(", ");
     return parts;
   }, [form?.streetAddress, form?.city, form?.state, form?.country, form?.zipCode]);
 
-  // Check for weather data presence
+  const anyLocationProvided = useMemo(
+    () => has(form?.location) || has(postalAddress),
+    [form?.location, postalAddress]
+  );
+
   const hasWeatherData = useMemo(
-    () =>
-      normalizeString(form?.temperature) !== "" ||
-      normalizeString(form?.humidity) !== "" ||
-      normalizeString(form?.windSpeed) !== "" ||
-      normalizeString(form?.weatherDescription) !== "",
+    () => has(form?.temperature) || has(form?.humidity) || has(form?.windSpeed) || has(form?.weatherDescription),
     [form?.temperature, form?.humidity, form?.windSpeed, form?.weatherDescription]
   );
 
-  // Check for location data presence
-  const hasLocationData = useMemo(
-    () => normalizeString(form?.location) !== "" || address !== "",
-    [form?.location, address]
-  );
-
-  // Photo buckets with defaults
   const buckets: PhotoBuckets = useMemo(
     () =>
       sectionPhotos || {
@@ -242,86 +210,69 @@ export default function ReportPreview({
         notes: [],
         evidence: [],
         additional: [],
+        background: [],
+        fieldObservation: [],
       },
     [sectionPhotos]
   );
 
-  // Format observation time for display
-  const observationTime = useMemo(
-    () => formatTime(form?.startInspectionTime || ""),
-    [form?.startInspectionTime]
-  );
+  const observationTime = useMemo(() => formatTime(form?.startInspectionTime), [form?.startInspectionTime]);
+  const mapAddress = useMemo(() => (postalAddress ? postalAddress : S(form?.location)), [postalAddress, form?.location]);
 
-  // Handle coordinates from MapCard (optional)
   const handleCoords = (lat: number, lon: number) => {
-    // You can use lat/lon here if needed, e.g., update form state or store elsewhere
-    console.log(`Coordinates received: ${lat}, ${lon}`);
+    // For preview only; the PDF uses export.ts logic
+    console.log(`Map coords in preview: ${lat}, ${lon}`);
   };
 
   return (
-    <div id="reportPreview" className="report-preview p-4 md:p-6 space-y-6">
-      {/* Status & Contact */}
-      <Section title="Filed Condition Summary">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Line label="Status" value={normalizeString(form?.status)} />
-          <Line label="Report ID" value={normalizeString(form?.reportId)} />
-          <Line label="Name of Field Inspector" value={normalizeString(form?.inspectorName)} />
-          
-          <Line label="Client / Owner" value={normalizeString(form?.clientName)} />
-          <Line label="Contractor" value={normalizeString(form?.contractorName)} />
-          <Line label="Company Name" value={normalizeString(form?.companyName)} /> {/* 👉 ADDED */}
-          <Line label="Phone Number of Inspection Company" value={normalizeString(form?.contactPhone)} />
-          <Line label="Email of Inspection Company" value={normalizeString(form?.contactEmail)} />
-          <Line label="Date of Inspection" value={normalizeString(form?.inspectionDate)} />
+    <div
+      id="reportPreview"
+      className="report-preview space-y-5 bg-transparent"
+    >
+      {/* ===== Status ===== */}
+      <Section title="Field Condition Summary">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-2">
+          <Line label="Status" value={S(form?.status)} />
+          <Line label="Report ID" value={S(form?.reportId)} />
+          <Line label="Name of Filed Inspector" value={S(form?.inspectorName)} />
+          <Line label="Name and Address of Inspection Company" value={S(form?.nameandAddressOfCompany)} />
+          <Line label="Client / Owner NAME" value={S(form?.clientName)} />
+          <Line label="Company Name" value={S(form?.companyName)} />
+          <Line label="Phone Number of Inspection Company" value={S(form?.contactPhone)} />
+          <Line label="Email of Inspection Company" value={S(form?.contactEmail)} />
+          <Line label="Date of Inspection" value={S(form?.inspectionDate)} />
           <Line label="Start Time of Inspection" value={observationTime} />
+          <Line label="Inspection Property Address" value={S(form?.location)} />
         </div>
       </Section>
 
-      {/* Location & Weather + Map */}
-      {(hasLocationData || hasWeatherData) && (
-        <Section title="Location & Weather">
+      {/* ===== Weather Conditions ===== */}
+      {(anyLocationProvided || hasWeatherData || (buckets.weather?.length ?? 0) > 0) && (
+        <Section title="Weather Conditions">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Name and Address of Inspection Company" value={normalizeString(form?.location)} />
-            <Line label="Address" value={address} />
+            <Line label="Full Inspection Property Address" value={postalAddress} />
           </div>
 
           {hasWeatherData && (
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Line
-                label="Temperature"
-                value={
-                  normalizeString(form?.temperature) !== ""
-                    ? `${form?.temperature} °C`
-                    : undefined
-                }
-              />
-              <Line
-                label="Humidity"
-                value={
-                  normalizeString(form?.humidity) !== "" ? `${form?.humidity} %` : undefined
-                }
-              />
-              <Line
-                label="Wind"
-                value={
-                  normalizeString(form?.windSpeed) !== "" ? `${form?.windSpeed} m/s` : undefined
-                }
-              />
-              <Line label="Description" value={normalizeString(form?.weatherDescription)} />
+            <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Line label="Temperature" value={has(form?.temperature) ? `${form?.temperature} °C` : undefined} />
+              <Line label="Humidity" value={has(form?.humidity) ? `${form?.humidity} %` : undefined} />
+              <Line label="Wind" value={has(form?.windSpeed) ? `${form?.windSpeed} m/s` : undefined} />
+              <Line label="Description" value={S(form?.weatherDescription)} />
             </div>
           )}
 
-          {address && (
-            <div className="mt-4">
+          {mapAddress && (
+            <div className="mt-3">
               <MapCard
-                address={address}
+                address={mapAddress}
                 onCoords={handleCoords}
-                className="nk-print-map"
+                className="nk-print-map w-full h-64 rounded-lg border border-gray-200"
               />
             </div>
           )}
 
-          {buckets.weather?.length > 0 && (
+          {(buckets.weather?.length ?? 0) > 0 && (
             <div className="mt-4">
               <PhotoGrid photos={buckets.weather} />
             </div>
@@ -329,16 +280,36 @@ export default function ReportPreview({
         </Section>
       )}
 
-      {/* Safety */}
-      {(normalizeString(form?.safetyCompliance) ||
-        normalizeString(form?.safetySignage) ||
-        buckets.safety?.length > 0) && (
+      {/* ===== Background (NEW) ===== */}
+      {(has(form?.backgroundManual) ||
+        has(form?.backgroundAuto) ||
+        (buckets.background?.length ?? 0) > 0) && (
+        <Section title="Background">
+          {has(form?.backgroundManual) && (
+            <p className="text-[13px] leading-6 text-gray-800 text-justify mb-2">{S(form?.backgroundManual)}</p>
+          )}
+          {has(form?.backgroundAuto) && (
+            <p className="text-[13px] leading-6 text-gray-800 text-justify italic">
+              {S(form?.backgroundAuto)}
+            </p>
+          )}
+
+          {(buckets.background?.length ?? 0) > 0 && (
+            <div className="mt-4">
+              <PhotoGrid photos={buckets.background} />
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ===== Safety & Compliance ===== */}
+      {(has(form?.safetyCompliance) || has(form?.safetySignage) || (buckets.safety?.length ?? 0) > 0) && (
         <Section title="Safety & Compliance">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Safety Compliance" value={normalizeString(form?.safetyCompliance)} />
-            <Line label="Safety Signage" value={normalizeString(form?.safetySignage)} />
+            <Line label="All safety protocols & PPE followed?" value={S(form?.safetyCompliance)} />
+            <Line label="Safety signage & access control in place?" value={S(form?.safetySignage)} />
           </div>
-          {buckets.safety?.length > 0 && (
+          {(buckets.safety?.length ?? 0) > 0 && (
             <div className="mt-4">
               <PhotoGrid photos={buckets.safety} />
             </div>
@@ -346,22 +317,15 @@ export default function ReportPreview({
         </Section>
       )}
 
-      {/* Personnel & Work */}
-      {(normalizeString(form?.numWorkers) ||
-        normalizeString(form?.workerAttendance) ||
-        normalizeString(form?.workProgress) ||
-        normalizeString(form?.scheduleCompliance) ||
-        normalizeString(form?.materialAvailability) ||
-        buckets.work?.length > 0) && (
+      {/* ===== Personnel & Work Progress ===== */}
+      {(has(form?.workerAttendance) || has(form?.scheduleCompliance) || has(form?.materialAvailability) || (buckets.work?.length ?? 0) > 0) && (
         <Section title="Personnel & Work Progress">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Workers on site" value={normalizeString(form?.numWorkers)} />
-            <Line label="Attendance" value={normalizeString(form?.workerAttendance)} />
-            <Line label="Schedule" value={normalizeString(form?.scheduleCompliance)} />
-            <Line label="Materials" value={normalizeString(form?.materialAvailability)} />
-            <Line label="Progress" value={normalizeString(form?.workProgress)} />
+            <Line label="All workers present & on time?" value={S(form?.workerAttendance)} />
+            <Line label="Progress vs schedule" value={S(form?.scheduleCompliance)} />
+            <Line label="Materials available & usable?" value={S(form?.materialAvailability)} />
           </div>
-          {buckets.work?.length > 0 && (
+          {(buckets.work?.length ?? 0) > 0 && (
             <div className="mt-4">
               <PhotoGrid photos={buckets.work} />
             </div>
@@ -369,62 +333,38 @@ export default function ReportPreview({
         </Section>
       )}
 
-      {/* Equipment & Quality */}
-      {(normalizeString(form?.equipmentCondition) ||
-        normalizeString(form?.maintenanceStatus) ||
-        normalizeString(form?.workmanshipQuality) ||
-        normalizeString(form?.specificationCompliance) ||
-        buckets.equipment?.length > 0 ||
-        buckets.quality?.length > 0) && (
-        <Section title="Inspection Support Equipment (if any)">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Equipment Condition" value={normalizeString(form?.equipmentCondition)} />
-            <Line label="Maintenance" value={normalizeString(form?.maintenanceStatus)} />
-            <Line label="Workmanship" value={normalizeString(form?.workmanshipQuality)} />
-            <Line
-              label="Per Specs"
-              value={normalizeString(form?.specificationCompliance)}
-            />
-          </div>
-          {(buckets.equipment?.length > 0 || buckets.quality?.length > 0) && (
+      {/* ===== Field Observation (NEW) ===== */}
+      {(has(form?.fieldObservationText) || (buckets.fieldObservation?.length ?? 0) > 0) && (
+        <Section title="Field Observation">
+          {has(form?.fieldObservationText) && (
+            <p className="text-[13px] leading-6 text-gray-800 text-justify mb-2">
+              {S(form?.fieldObservationText)}
+            </p>
+          )}
+          {(buckets.fieldObservation?.length ?? 0) > 0 && (
             <div className="mt-4">
-              <PhotoGrid photos={[...(buckets.equipment || []), ...(buckets.quality || [])]} />
+              <PhotoGrid photos={buckets.fieldObservation} />
             </div>
           )}
         </Section>
       )}
 
-      {/* Incidents & Site
-      {(normalizeString(form?.incidentsHazards) ||
-        normalizeString(form?.siteHousekeeping) ||
-        normalizeString(form?.stakeholderVisits) ||
-        buckets.incidents?.length > 0) && (
-        <Section title="Incidents & Site Conditions">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Incidents / Hazards" value={normalizeString(form?.incidentsHazards)} />
-            <Line label="Housekeeping" value={normalizeString(form?.siteHousekeeping)} />
-            <Line label="Stakeholder Visits" value={normalizeString(form?.stakeholderVisits)} />
-          </div>
-          {buckets.incidents?.length > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.incidents} />
-            </div>
-          )}
+      {/* ===== Inspection Support Equipment ===== */}
+      {(buckets.equipment?.length ?? 0) > 0 && (
+        <Section title="Inspection Support Equipment (if any)">
+          <PhotoGrid photos={buckets.equipment} />
         </Section>
-      )} */}
+      )}
 
-      {/* Notes */}
-      {(normalizeString(form?.additionalComments) ||
-        normalizeString(form?.inspectorSummary) ||
-        normalizeString(form?.recommendations) ||
-        buckets.notes?.length > 0) && (
+      {/* ===== Additional Inspection Notes ===== */}
+      {(has(form?.additionalComments) || has(form?.inspectorSummary) || has(form?.recommendations) || (buckets.notes?.length ?? 0) > 0) && (
         <Section title="Additional Inspection Notes (if any)">
-          <div className="space-y-2">
-            <Line label="Comments" value={normalizeString(form?.additionalComments)} />
-            <Line label="Inspector's Summary" value={normalizeString(form?.inspectorSummary)} />
-            <Line label="Recommendations" value={normalizeString(form?.recommendations)} />
+          <div className="space-y-1">
+            <Line label="Additional comments / observations" value={S(form?.additionalComments)} />
+            <Line label="Inspector's Summary (short)" value={S(form?.inspectorSummary)} />
+            <Line label="Recommendations / next actions" value={S(form?.recommendations)} />
           </div>
-          {buckets.notes?.length > 0 && (
+          {(buckets.notes?.length ?? 0) > 0 && (
             <div className="mt-4">
               <PhotoGrid photos={buckets.notes} />
             </div>
@@ -432,32 +372,22 @@ export default function ReportPreview({
         </Section>
       )}
 
-      {/* Photo Evidence */}
-      {buckets.evidence?.length > 0 && (
-        <Section title="Photo Evidence">
-          <PhotoGrid photos={buckets.evidence} />
-        </Section>
-      )}
-
-      {/* Additional Images */}
-      {buckets.additional?.length > 0 && (
-        <Section title="Additional Images">
+      {/* ===== Additional Images ===== */}
+      {(buckets.additional?.length ?? 0) > 0 && (
+        <Section title="Additional Images (optional)">
           <PhotoGrid photos={buckets.additional} />
         </Section>
       )}
 
-      {/* Signature */}
+      {/* ===== Signature ===== */}
       {signatureData && (
         <Section title="Signature of Inspector">
-          <div className="signature-pad p-4 rounded-md">
+          <div className="flex items-center gap-4 rounded-lg border border-gray-200 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={signatureData}
-              alt="Signature of Inspector"
-              className="max-h-32 object-contain"
-            />
-            <div className="text-sm text-kiwi-gray mt-2">
-              Signed on: {form?.signatureDateTime || "—"}
+            <img src={signatureData} alt="Signature of Inspector" className="max-h-24 object-contain" />
+            <div className="text-[13px] text-gray-700">
+              <div className="font-semibold">{S(form?.inspectorName) || "Inspector"}</div>
+              <div className="text-gray-600">Signed on: {S(form?.signatureDateTime) || "—"}</div>
             </div>
           </div>
         </Section>

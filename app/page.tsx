@@ -15,7 +15,10 @@ import MapCard from "@/components/MapCard";
 
 import { generateFullReportPDF } from "@/lib/export";
 
-// ---- Types that match the exporter (do not change names) ----
+// ✅ local UI photo type
+import { UPhoto } from "@/lib/types";
+
+/* ------------ Types that match the exporter (do not change names) ------------ */
 type FlexMode = "yesno" | "text";
 type FlexFieldId =
   | "weatherConditions"
@@ -35,19 +38,15 @@ export type PhotoData = {
   description?: string;
 };
 
-// Your app-local photo type
-import { UPhoto } from "../lib/types";
-
-// Minimal shape the exporter expects from "form"
 type FormData = {
   reportId: string;
 
   /** Company info */
-  nameandAddressOfCompany: string; // unified (replaces supervisorName/contractorName variants)
+  nameandAddressOfCompany: string;
   companyName: string;
 
   /** Meta */
-  observationTime?: string; // not used by exporter but kept for UI
+  observationTime?: string;
   reportDate?: string;
   preparedFor?: string;
   preparedBy?: string;
@@ -118,7 +117,14 @@ type FormData = {
 
   /** per-field mode */
   flexibleModes: Record<FlexFieldId, FlexMode>;
+
+  /** NEW: Background + Field Observation text */
+  backgroundManual: string;       // user's own background text
+  backgroundAuto: string;         // auto generated from inputs
+  fieldObservationText: string;   // user's own field observation text
 };
+
+const S = (v: unknown) => (v == null ? "" : String(v).trim());
 
 export default function Page() {
   /* ---------------- State ---------------- */
@@ -193,6 +199,11 @@ export default function Page() {
       siteHousekeeping: "yesno",
       communicationRating: "yesno",
     },
+
+    // NEW fields
+    backgroundManual: "",
+    backgroundAuto: "",
+    fieldObservationText: "",
   }));
 
   // per-section photos (your UI type)
@@ -206,6 +217,9 @@ export default function Page() {
     notes: [],
     evidence: [],
     additional: [],
+    // NEW buckets
+    background: [],
+    fieldObservation: [],
   });
 
   const [signatureData, setSignatureData] = useState<string | null>(null);
@@ -254,7 +268,7 @@ export default function Page() {
 
   /* ---------------- Helpers ---------------- */
 
-  // Map UPhoto -> PhotoData for the exporter (keeps caption)
+  // Map UPhoto -> PhotoData for the exporter (keeps caption/description)
   const adaptPhotos = (arr: UPhoto[]): PhotoData[] =>
     (arr || []).map((p: any) => ({
       name: p.name ?? p.filename ?? "Photo",
@@ -269,15 +283,15 @@ export default function Page() {
   const adaptedSectionPhotos = useMemo(() => {
     const out: Record<string, PhotoData[]> = {};
     for (const key of Object.keys(sectionPhotos)) {
-      out[key] = adaptPhotos(sectionPhotos[key]);
+      out[key] = adaptPhotos(sectionPhotos[key] || []);
     }
     return out;
   }, [sectionPhotos]);
 
-  // Summary photos (for AutoSummary preview only; export buttons were removed)
+  // Summary photos (for AutoSummary preview only)
   const summaryPhotosU = useMemo(() => {
     const all = sectionPhotos.evidence || [];
-    const selected = all.filter((p) => (p as any).includeInSummary);
+    const selected = all.filter((p: any) => (p as any)?.includeInSummary);
     return selected.length ? selected : all;
   }, [sectionPhotos.evidence]);
 
@@ -339,8 +353,9 @@ export default function Page() {
     (p: UPhoto[]) =>
       setSectionPhotos((sp) => ({ ...sp, [key]: p }));
 
-  const updateField = (key: keyof FormData | string, value: string) =>
-    setForm((f: any) => ({ ...f, [key]: value }));
+  // ✅ tighten typing to keys only (prevents accidental typos)
+  const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) =>
+    setForm((f) => ({ ...f, [key]: value }));
 
   const updateFlex = (id: FlexFieldId, mode: FlexMode, value: string) =>
     setForm((f) => ({
@@ -348,6 +363,29 @@ export default function Page() {
       [id]: value,
       flexibleModes: { ...f.flexibleModes, [id]: mode },
     }));
+
+  // Build auto background (simple, mirrors export.ts logic)
+  const makeAutoBackground = () => {
+    const parts: string[] = [];
+    const address =
+      [form.streetAddress, [form.city, form.state].filter(Boolean).join(", "), [form.country, form.zipCode].filter(Boolean).join(" ")]
+        .filter(Boolean)
+        .map(S)
+        .filter(Boolean)
+        .join(", ") || S(form.location);
+
+    if (address) parts.push(`The property located at ${address} was reviewed for current construction progress and site safety conditions.`);
+    if (S(form.workProgress)) parts.push(`Observed work: ${S(form.workProgress)}.`);
+    if (S(form.scheduleCompliance)) parts.push(`Schedule position: ${S(form.scheduleCompliance)}.`);
+    if (S(form.materialAvailability)) parts.push(`Materials: ${S(form.materialAvailability)}.`);
+    if (S(form.safetyCompliance)) parts.push(`Safety compliance: ${S(form.safetyCompliance)}.`);
+    if (S(form.safetySignage)) parts.push(`Safety signage and access control: ${S(form.safetySignage)}.`);
+
+    if (!parts.length) {
+      parts.push("This section summarizes project background based on inspector inputs and photographic evidence collected during the visit.");
+    }
+    updateField("backgroundAuto", parts.join(" "));
+  };
 
   /* ---------------- Render ---------------- */
   return (
@@ -376,7 +414,7 @@ export default function Page() {
 
             {/* Status */}
             <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
-              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Status</h2>
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Field Condition Summary</h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Status radio */}
@@ -390,7 +428,7 @@ export default function Page() {
                           name="status"
                           value={v}
                           checked={form.status === v}
-                          onChange={(e) => updateField("status", e.target.value)}
+                          onChange={(e) => updateField("status", e.target.value as FormData["status"])}
                         />
                         {v}
                       </label>
@@ -415,7 +453,7 @@ export default function Page() {
                 {/* Inspector */}
                 <div>
                   <label className="block text-sm mb-2" htmlFor="inspectorName">
-                    Inspector
+                    Name of Filed Inspector
                   </label>
                   <input
                     id="inspectorName"
@@ -426,7 +464,7 @@ export default function Page() {
                   />
                 </div>
 
-                {/* Name and address of inspection company */}
+                {/* Company */}
                 <div className="md:col-span-2">
                   <label className="block text-sm mb-2" htmlFor="nameandAddressOfCompany">
                     Name and Address of Inspection Company
@@ -547,20 +585,6 @@ export default function Page() {
                   />
                 </div>
 
-                {/* Address */}
-                <div className="md:col-span-2">
-                  <label className="block text-sm mb-2" htmlFor="streetAddress">
-                    Address
-                  </label>
-                  <input
-                    id="streetAddress"
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
-                    placeholder="Street address"
-                    value={form.streetAddress}
-                    onChange={(e) => updateField("streetAddress", e.target.value)}
-                  />
-                </div>
-
                 <div>
                   <label className="block text-sm mb-2" htmlFor="city">
                     City
@@ -626,7 +650,7 @@ export default function Page() {
                   updateField("temperature", String(w.temperature));
                   updateField("humidity", String(w.humidity));
                   updateField("windSpeed", String(w.windSpeed));
-                  updateField("weatherDescription", w.description);
+                  updateField("weatherDescription", w.description as string);
                 }}
               />
 
@@ -665,8 +689,8 @@ export default function Page() {
 
                       if (hours?.length) {
                         const target = d.getTime();
-                        let best = 0,
-                          bestDiff = Number.POSITIVE_INFINITY;
+                        let best = 0;
+                        let bestDiff = Number.POSITIVE_INFINITY;
 
                         for (let i = 0; i < hours.length; i++) {
                           const t = new Date(hours[i]).getTime();
@@ -719,15 +743,47 @@ export default function Page() {
                   onNoteChange={(t) => updateField("weatherConditionsNote", t)}
                 />
               </div>
+            </div>
 
-              {/* Optional Weather Photos */}
-              {/* <div className="mt-4">
-                <SectionPhotos
-                  title="Weather Related Photos (If Any)"
-                  photos={sectionPhotos.weather}
-                  setPhotos={setPhotoBucket("weather")}
+            {/* NEW: Background */}
+            <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Background</h2>
+
+              <label className="block text-sm mb-2" htmlFor="backgroundManual">
+                Background (optional free text)
+              </label>
+              <textarea
+                id="backgroundManual"
+                rows={4}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
+                placeholder="Add any project context, scope, prior inspections, approvals, etc."
+                value={form.backgroundManual}
+                onChange={(e) => updateField("backgroundManual", e.target.value)}
+              />
+
+              <div className="mt-3 flex gap-3">
+                <button
+                  onClick={makeAutoBackground}
+                  className="bg-kiwi-green hover:bg-kiwi-dark text-white font-semibold py-2 px-4 rounded-lg transition"
+                  type="button"
+                >
+                  Auto-generate Background
+                </button>
+                <input
+                  readOnly
+                  className="flex-1 px-3 py-2 border rounded-lg bg-gray-50"
+                  value={form.backgroundAuto}
+                  placeholder="Auto background will appear here"
                 />
-              </div> */}
+              </div>
+
+              <div className="mt-4">
+                <SectionPhotos
+                  title="Background Photos (optional)"
+                  photos={sectionPhotos.background}
+                  setPhotos={setPhotoBucket("background")}
+                />
+              </div>
             </div>
 
             {/* Safety */}
@@ -751,14 +807,6 @@ export default function Page() {
                   onNoteChange={(t) => updateField("safetySignageNote", t)}
                 />
               </div>
-
-              {/* <div className="mt-4">
-                <SectionPhotos
-                  title="Safety Photos"
-                  photos={sectionPhotos.safety}
-                  setPhotos={setPhotoBucket("safety")}
-                />
-              </div> */}
             </div>
 
             {/* Personnel & Work */}
@@ -767,20 +815,6 @@ export default function Page() {
                 Personnel & Work Progress
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Workers on site — optional */}
-                {/* <div>
-                  <label className="block text-sm mb-2" htmlFor="numWorkers">
-                    Workers on site
-                  </label>
-                  <input
-                    id="numWorkers"
-                    type="number"
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
-                    value={form.numWorkers}
-                    onChange={(e) => updateField("numWorkers", e.target.value)}
-                  />
-                </div> */}
-
                 <div>
                   <label className="block text-sm mb-2">All workers present & on time?</label>
                   <div className="flex gap-4">
@@ -798,21 +832,6 @@ export default function Page() {
                     ))}
                   </div>
                 </div>
-
-                {/* Work progress text — optional */}
-                {/* <div className="md:col-span-2">
-                  <label className="block text-sm mb-2" htmlFor="workProgress">
-                    Current work progress summary
-                  </label>
-                  <textarea
-                    id="workProgress"
-                    rows={3}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
-                    placeholder="Key activities, trades, locations…"
-                    value={form.workProgress}
-                    onChange={(e) => updateField("workProgress", e.target.value)}
-                  />
-                </div> */}
 
                 <div>
                   <label className="block text-sm mb-2">Progress vs schedule</label>
@@ -860,13 +879,36 @@ export default function Page() {
               </div>
             </div>
 
+            {/* NEW: Field Observation (text + images) */}
+            <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Field Observation</h2>
+
+              <label className="block text-sm mb-2" htmlFor="fieldObservationText">
+                Field Observation (optional free text)
+              </label>
+              <textarea
+                id="fieldObservationText"
+                rows={4}
+                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
+                placeholder="Summarize key on-site observations, hazards, deviations, or noteworthy progress."
+                value={form.fieldObservationText}
+                onChange={(e) => updateField("fieldObservationText", e.target.value)}
+              />
+
+              <div className="mt-4">
+                <SectionPhotos
+                  title="Field Observation Photos"
+                  photos={sectionPhotos.fieldObservation}
+                  setPhotos={setPhotoBucket("fieldObservation")}
+                />
+              </div>
+            </div>
+
             {/* Equipment & Quality */}
             <div className="form-section bg-white rounded-xl p-6 shadow-sm fade-in">
               <h2 className="text-xl font-semibold text-kiwi-dark mb-4">
                 Inspection Support Equipment (if any)
               </h2>
-
-              {/* Optional quality/maintenance radios removed for brevity */}
 
               <div className="mt-4">
                 <SectionPhotos
@@ -899,20 +941,12 @@ export default function Page() {
                       rows={3}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-kiwi-green"
                       placeholder={ph}
-                      value={(form as any)[id] as string}
-                      onChange={(e) => updateField(id, e.target.value)}
+                      value={form[id as keyof FormData] as string}
+                      onChange={(e) => updateField(id as keyof FormData, e.target.value)}
                     />
                   </div>
                 ))}
               </div>
-              {/* Optional Notes photos */}
-              {/* <div className="mt-4">
-                <SectionPhotos
-                  title="Notes Photos"
-                  photos={sectionPhotos.notes}
-                  setPhotos={setPhotoBucket("notes")}
-                />
-              </div> */}
             </div>
 
             {/* Additional Images */}
