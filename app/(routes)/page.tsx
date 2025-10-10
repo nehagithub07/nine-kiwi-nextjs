@@ -387,7 +387,7 @@ export default function Page() {
     updateField("backgroundAuto", parts.join(" "));
   };
 
-  /* ---------------- Render ---------------- */
+  /* ---------------- Render (MAIN copied from OLD) ---------------- */
   return (
     <>
       {/* Header */}
