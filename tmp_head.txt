@@ -1,0 +1,250 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+
+import ProgressBar from "@/components/ProgressBar";
+import WeatherPanel from "@/components/WeatherPanel";
+import FlexibleAnswer from "@/components/FlexibleAnswer";
+import SectionPhotos from "@/components/SectionPhotos";
+import ReportPreview from "@/components/ReportPreview";
+import AutoSummary from "@/components/AutoSummary";
+import SignaturePadBox from "@/components/SignaturePad";
+import MapCard from "@/components/MapCard";
+
+import { generateFullReportPDF } from "@/lib/export";
+
+// ✅ local UI photo type
+import { UPhoto } from "@/lib/types";
+
+/* ------------ Types that match the exporter (do not change names) ------------ */
+type FlexMode = "yesno" | "text";
+type FlexFieldId =
+  | "weatherConditions"
+  | "safetyCompliance"
+  | "safetySignage"
+  | "equipmentCondition"
+  | "workmanshipQuality"
+  | "siteHousekeeping"
+  | "communicationRating";
+
+export type PhotoData = {
+  name: string;
+  data: string; // dataURL or http(s)
+  includeInSummary?: boolean;
+  caption?: string;
+  figureNumber?: number;
+  description?: string;
+};
+
+type FormData = {
+  reportId: string;
+
+  /** Company info */
+  nameandAddressOfCompany: string;
+  companyName: string;
+
+  /** Meta */
+  observationTime?: string;
+  reportDate?: string;
+  preparedFor?: string;
+  preparedBy?: string;
+
+  status: "In Progress" | "Completed" | "On Track" | "";
+  clientName: string;
+  inspectorName: string;
+  contactPhone: string;
+  contactEmail: string;
+
+  /** Location details */
+  location: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  country: string;
+  zipCode: string;
+
+  /** Coordinates for map rendering */
+  lat: string;
+  lon: string;
+
+  inspectionDate: string;
+  startInspectionTime: string;
+
+  /** Weather snapshot */
+  temperature: string;
+  humidity: string;
+  windSpeed: string;
+  weatherDescription: string;
+
+  /** flexible answers (yes/no or text) */
+  weatherConditions: string;
+  safetyCompliance: string;
+  safetySignage: string;
+  equipmentCondition: string;
+  workmanshipQuality: string;
+  siteHousekeeping: string;
+  communicationRating: string;
+
+  /** other radios/texts */
+  numWorkers: string;
+  workerAttendance: string;
+  workProgress: string;
+  scheduleCompliance: string;
+  materialAvailability: string;
+  maintenanceStatus: string;
+  specificationCompliance: string;
+  incidentsHazards: string;
+  stakeholderVisits: string;
+
+  /** notes */
+  additionalComments: string;
+  inspectorSummary: string;
+  recommendations: string;
+  recommendationRating: string;
+  improvementAreas: string;
+  signatureDateTime: string;
+
+  /** detail notes shown when a related yes/no is "Yes" */
+  weatherConditionsNote?: string;
+  safetyComplianceNote?: string;
+  safetySignageNote?: string;
+  equipmentConditionNote?: string;
+  workmanshipQualityNote?: string;
+  siteHousekeepingNote?: string;
+  communicationRatingNote?: string;
+
+  /** per-field mode */
+  flexibleModes: Record<FlexFieldId, FlexMode>;
+
+  /** NEW: Background + Field Observation text */
+  backgroundManual: string;       // user's own background text
+  backgroundAuto: string;         // auto generated from inputs
+  fieldObservationText: string;   // user's own field observation text
+};
+
+const S = (v: unknown) => (v == null ? "" : String(v).trim());
+
+export default function Page() {
+  /* ---------------- State ---------------- */
+  const [form, setForm] = useState<FormData>(() => ({
+    status: "",
+    reportId: "",
+
+    clientName: "",
+    companyName: "",
+    inspectorName: "",
+    nameandAddressOfCompany: "",
+    contactPhone: "",
+    contactEmail: "",
+
+    location: "",
+    streetAddress: "",
+    city: "",
+    state: "",
+    country: "",
+    zipCode: "",
+
+    lat: "",
+    lon: "",
+
+    inspectionDate: "",
+    startInspectionTime: "",
+
+    temperature: "",
+    humidity: "",
+    windSpeed: "",
+    weatherDescription: "",
+
+    weatherConditions: "",
+    safetyCompliance: "",
+    safetySignage: "",
+    equipmentCondition: "",
+    workmanshipQuality: "",
+    siteHousekeeping: "",
+    communicationRating: "",
+
+    numWorkers: "",
+    workerAttendance: "",
+    workProgress: "",
+    scheduleCompliance: "",
+    materialAvailability: "",
+    maintenanceStatus: "",
+    specificationCompliance: "",
+    incidentsHazards: "",
+    stakeholderVisits: "",
+
+    additionalComments: "",
+    inspectorSummary: "",
+    recommendations: "",
+    recommendationRating: "",
+    improvementAreas: "",
+    signatureDateTime: "",
+
+    weatherConditionsNote: "",
+    safetyComplianceNote: "",
+    safetySignageNote: "",
+    equipmentConditionNote: "",
+    workmanshipQualityNote: "",
+    siteHousekeepingNote: "",
+    communicationRatingNote: "",
+
+    flexibleModes: {
+      weatherConditions: "yesno",
+      safetyCompliance: "yesno",
+      safetySignage: "yesno",
+      equipmentCondition: "yesno",
+      workmanshipQuality: "yesno",
+      siteHousekeeping: "yesno",
+      communicationRating: "yesno",
+    },
+
+    // NEW fields
+    backgroundManual: "",
+    backgroundAuto: "",
+    fieldObservationText: "",
+  }));
+
+  // per-section photos (your UI type)
+  const [sectionPhotos, setSectionPhotos] = useState<Record<string, UPhoto[]>>({
+    weather: [],
+    safety: [],
+    work: [],
+    equipment: [],
+    incidents: [],
+    quality: [],
+    notes: [],
+    evidence: [],
+    additional: [],
+    // NEW buckets
+    background: [],
+    fieldObservation: [],
+  });
+
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+
+  // Initialize dates and fetch geolocated weather
+  useEffect(() => {
+    const now = new Date();
+    setForm((f) => ({
+      ...f,
+      inspectionDate: f.inspectionDate || now.toISOString().split("T")[0],
+      startInspectionTime: f.startInspectionTime || "12:00",
+      signatureDateTime: f.signatureDateTime || now.toISOString().slice(0, 16),
+    }));
+
+    const fetchWeatherData = async () => {
+      if (typeof window !== "undefined" && navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          const { latitude, longitude } = position.coords;
+          const apiKey = process.env.NEXT_PUBLIC_OPENWEATHER_API_KEY;
+          if (!apiKey) return;
+
+          const url = `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`;
+
+          try {
+            const response = await fetch(url);
+            const data: any = await response.json();
+
+            setForm((prev) => ({

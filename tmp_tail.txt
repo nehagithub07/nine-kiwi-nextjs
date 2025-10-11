@@ -1,0 +1,50 @@
+
+            <SignaturePadBox
+              signatureData={signatureData}
+              setSignatureData={setSignatureData}
+              value={form.signatureDateTime}
+              onDate={(v) => updateField("signatureDateTime", v)}
+              signer={form.inspectorName}
+            />
+
+            {/* Actions */}
+            <div className="flex flex-col sm:flex-row gap-3 no-print">
+              <button
+                onClick={() =>
+                  generateFullReportPDF(
+                    form as any,
+                    adaptedSectionPhotos as any,
+                    signatureData
+                  )
+                }
+                className="flex-1 bg-kiwi-green hover:bg-kiwi-dark text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
+              >
+                Generate PDF Report
+              </button>
+            </div>
+          </section>
+
+          {/* RIGHT: PREVIEW + AUTO SUMMARY */}
+          <aside className="space-y-6">
+            <div className="bg-white rounded-xl p-6 shadow-sm sticky top-6">
+              <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Live Preview</h2>
+
+              <ReportPreview
+                form={form}
+                sectionPhotos={sectionPhotos}
+                signatureData={signatureData}
+              />
+
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-kiwi-dark mb-3">
+                  Auto-Generated Summary
+                </h3>
+                <AutoSummary form={form} photos={summaryPhotosU} />
+              </div>
+            </div>
+          </aside>
+        </div>
+      </main>
+    </>
+  );
+}

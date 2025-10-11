@@ -1,31 +1,35 @@
-// models/Photo.ts
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Types } from "mongoose";
+
 
 export interface IPhoto {
-  reportId: string;          // link to a report
-  section: string;           // "weather" | "safety" | "work" | etc.
-  name: string;
-  src?: string;              // remote URL or data URL (optional)
-  includeInSummary?: boolean;
-  caption?: string;
-  description?: string;
-  figureNumber?: number;
-  createdAt?: Date;
-  updatedAt?: Date;
+reportId?: string; // optional free-form id you already use in UI
+section?: string; // e.g. "background", "fieldObservation"
+name: string;
+src: string; // Cloudinary URL (or data URL if needed)
+includeInSummary?: boolean;
+caption?: string;
+description?: string;
+figureNumber?: number;
+uploadedBy?: Types.ObjectId; // reference to User
+createdAt: Date;
+updatedAt: Date;
 }
 
+
 const PhotoSchema = new Schema<IPhoto>(
-  {
-    reportId: { type: String, required: true, index: true },
-    section:  { type: String, required: true, index: true },
-    name:     { type: String, required: true },
-    src:      { type: String },
-    includeInSummary: { type: Boolean, default: false },
-    caption:  { type: String },
-    description: { type: String },
-    figureNumber: { type: Number },
-  },
-  { timestamps: true }
+{
+reportId: { type: String },
+section: { type: String },
+name: { type: String, required: true },
+src: { type: String, required: true },
+includeInSummary: { type: Boolean, default: false },
+caption: { type: String },
+description: { type: String },
+figureNumber: { type: Number },
+uploadedBy: { type: Schema.Types.ObjectId, ref: "User" },
+},
+{ timestamps: true }
 );
+
 
 export const Photo = models.Photo || model<IPhoto>("Photo", PhotoSchema);

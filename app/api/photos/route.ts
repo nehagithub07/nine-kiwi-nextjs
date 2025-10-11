@@ -1,48 +1,118 @@
 // app/api/photos/route.ts
 import { NextResponse } from "next/server";
-import { connectToDB } from "@/lib/mongodb";
+import { connectDB } from "@/lib/db";
 import { Photo } from "@/models/Photo";
+import { cloudinary } from "@/lib/cloudinary";
+
+export const runtime = "nodejs";       // ✅ Cloudinary needs Node runtime
+export const dynamic = "force-dynamic"; // ✅ always dynamic (no caching of DB queries)
+
+type Query = {
+  reportId?: string;
+  section?: string;
+};
 
 export async function GET(req: Request) {
   try {
-    await connectToDB();
     const { searchParams } = new URL(req.url);
-    const reportId = searchParams.get("reportId");
-    const section = searchParams.get("section");
+    const reportId = searchParams.get("reportId") || undefined;
+    const section = searchParams.get("section") || undefined;
 
-    const filter: any = {};
-    if (reportId) filter.reportId = reportId;
-    if (section) filter.section = section;
+    await connectDB();
 
-    const items = await Photo.find(filter).sort({ createdAt: 1 }).lean();
-    return NextResponse.json({ ok: true, items });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    const query: Query = {};
+    if (reportId) query.reportId = reportId;
+    if (section) query.section = section;
+
+    const items = await Photo.find(query).sort({ createdAt: -1 });
+    return NextResponse.json(items, { status: 200 });
+  } catch (err: any) {
+    console.error("[GET /api/photos] error:", err);
+    return NextResponse.json(
+      { error: err?.message || "Failed to list photos" },
+      { status: 500 }
+    );
   }
 }
 
 export async function POST(req: Request) {
   try {
-    await connectToDB();
-    const body = await req.json();
-
-    if (!body?.reportId || !body?.section || !body?.name) {
-      return NextResponse.json({ ok: false, error: "reportId, section, name are required" }, { status: 400 });
+    const body = await req.json().catch(() => null);
+    if (!body) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
     }
 
-    const doc = await Photo.create({
-      reportId: String(body.reportId),
-      section:  String(body.section),
-      name:     String(body.name),
-      src:      body.src ? String(body.src) : undefined,
-      includeInSummary: !!body.includeInSummary,
-      caption:  body.caption ? String(body.caption) : undefined,
-      description: body.description ? String(body.description) : undefined,
-      figureNumber: typeof body.figureNumber === "number" ? body.figureNumber : undefined,
+    const {
+      name,
+      data,
+      reportId,
+      section,
+      includeInSummary,
+      caption,
+      description,
+      figureNumber,
+    } = body as {
+      name?: string;
+      data?: string; // dataURL or http(s)
+      reportId?: string;
+      section?: string;
+      includeInSummary?: boolean;
+      caption?: string;
+      description?: string;
+      figureNumber?: number;
+    };
+
+    if (!name || !data) {
+      return NextResponse.json(
+        { error: "name and data are required" },
+        { status: 400 }
+      );
+    }
+
+    // Optional but recommended: group by report/section
+    if (!reportId) {
+      return NextResponse.json(
+        { error: "reportId is required to persist photos" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    const isDataURL = typeof data === "string" && data.startsWith("data:");
+    const isHttpUrl = typeof data === "string" && /^https?:\/\//i.test(data);
+
+    let src = data as string;
+
+    // Upload only if it's a data URL or a remote URL; otherwise assume it's already a Cloudinary URL
+    if (isDataURL || isHttpUrl) {
+      const uploaded = await cloudinary.uploader.upload(data, {
+        folder: "ninekiwi/photos",
+        resource_type: "image",
+        overwrite: false,
+        // You can add public_id if you want deterministic names:
+        // public_id: `${reportId}/${Date.now()}_${Math.random().toString(36).slice(2)}`,
+      });
+      src = uploaded.secure_url;
+    }
+
+    const created = await Photo.create({
+      name,
+      src,
+      reportId,
+      section,
+      includeInSummary: !!includeInSummary,
+      caption,
+      description,
+      figureNumber,
     });
 
-    return NextResponse.json({ ok: true, item: doc });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e.message }, { status: 500 });
+    return NextResponse.json(created, { status: 201 });
+  } catch (err: any) {
+    console.error("[POST /api/photos] error:", err);
+    return NextResponse.json(
+      { error: err?.message || "Upload failed" },
+      { status: 500 }
+    );
   }
 }

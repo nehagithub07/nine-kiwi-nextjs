@@ -18,6 +18,14 @@ import { generateFullReportPDF } from "@/lib/export";
 // ✅ local UI photo type
 import { UPhoto } from "@/lib/types";
 
+// ✅ photos client (DB + Cloudinary)
+import {
+  listPhotos,
+  createPhoto,
+  updatePhoto,
+  deletePhoto,
+} from "@/lib/photosClient";
+
 /* ------------ Types that match the exporter (do not change names) ------------ */
 type FlexMode = "yesno" | "text";
 type FlexFieldId =
@@ -37,6 +45,9 @@ export type PhotoData = {
   figureNumber?: number;
   description?: string;
 };
+
+// keep Mongo id + Cloudinary url next to your UPhoto
+type DBUPhoto = UPhoto & { _id?: string; src?: string };
 
 type FormData = {
   reportId: string;
@@ -119,14 +130,39 @@ type FormData = {
   flexibleModes: Record<FlexFieldId, FlexMode>;
 
   /** NEW: Background + Field Observation text */
-  backgroundManual: string;       // user's own background text
-  backgroundAuto: string;         // auto generated from inputs
-  fieldObservationText: string;   // user's own field observation text
+  backgroundManual: string; // user's own background text
+  backgroundAuto: string; // auto generated from inputs
+  fieldObservationText: string; // user's own field observation text
 };
 
 const S = (v: unknown) => (v == null ? "" : String(v).trim());
 
 export default function Page() {
+  /* ---------------- Auth (optional but useful) ---------------- */
+  const [user, setUser] = useState<{
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+  } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        const { user } = await res.json();
+        setUser(user || null);
+      } catch {
+        setUser(null);
+      }
+    })();
+  }, []);
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  }
+
   /* ---------------- State ---------------- */
   const [form, setForm] = useState<FormData>(() => ({
     status: "",
@@ -206,8 +242,8 @@ export default function Page() {
     fieldObservationText: "",
   }));
 
-  // per-section photos (your UI type)
-  const [sectionPhotos, setSectionPhotos] = useState<Record<string, UPhoto[]>>({
+  // per-section photos (DB-aware)
+  const [sectionPhotos, setSectionPhotos] = useState<Record<string, DBUPhoto[]>>({
     weather: [],
     safety: [],
     work: [],
@@ -269,10 +305,11 @@ export default function Page() {
   /* ---------------- Helpers ---------------- */
 
   // Map UPhoto -> PhotoData for the exporter (keeps caption/description)
-  const adaptPhotos = (arr: UPhoto[]): PhotoData[] =>
+  const adaptPhotos = (arr: DBUPhoto[]): PhotoData[] =>
     (arr || []).map((p: any) => ({
       name: p.name ?? p.filename ?? "Photo",
-      data: p.data ?? p.src ?? "",
+      // Exporter accepts remote http(s) as well; we prefer Cloudinary src if present
+      data: p.src ?? p.data ?? "",
       includeInSummary: !!p.includeInSummary,
       caption: p.caption ?? p.name ?? "",
       description: p.description ?? "",
@@ -348,12 +385,7 @@ export default function Page() {
     return Math.round((filled / ids.length) * 100);
   }, [form]);
 
-  const setPhotoBucket =
-    (key: keyof typeof sectionPhotos) =>
-    (p: UPhoto[]) =>
-      setSectionPhotos((sp) => ({ ...sp, [key]: p }));
-
-  // ✅ tighten typing to keys only (prevents accidental typos)
+  // ✅ typed update helpers
   const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
@@ -387,6 +419,114 @@ export default function Page() {
     updateField("backgroundAuto", parts.join(" "));
   };
 
+  /* ---------------- DB <-> UI wiring ---------------- */
+
+  // map DB → UI item
+  const mapDbToU = (it: any): DBUPhoto => ({
+    _id: it._id,
+    name: it.name || "Photo",
+    data: it.src || it.data || "",
+    src: it.src,
+    includeInSummary: !!it.includeInSummary,
+    caption: it.caption || "",
+    description: it.description || "",
+    figureNumber: it.figureNumber,
+  });
+
+  // Load photos for all sections when reportId becomes available
+  useEffect(() => {
+    if (!form.reportId) return;
+
+    const keys = Object.keys(sectionPhotos);
+    (async () => {
+      try {
+        const next: Record<string, DBUPhoto[]> = {};
+        await Promise.all(
+          keys.map(async (k) => {
+            const items = await listPhotos(form.reportId, k);
+            next[k] = items.map(mapDbToU);
+          })
+        );
+        setSectionPhotos((prev) => ({ ...prev, ...next }));
+        console.log("✅ Photos loaded for report:", form.reportId);
+      } catch (e) {
+        console.error("Failed to load photos:", e);
+      }
+    })();
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.reportId]);
+
+  // Persisting setter for a given section (create/update/delete)
+  function makePersistingSetter(sectionKey: keyof typeof sectionPhotos) {
+    return async (nextArr: DBUPhoto[]) => {
+      // Update UI immediately for snappy feel
+      setSectionPhotos((sp) => ({ ...sp, [sectionKey]: nextArr }));
+
+      // Only persist if we have a reportId
+      if (!form.reportId) return;
+
+      const prevArr = sectionPhotos[sectionKey] || [];
+      const prevMap = new Map((prevArr as DBUPhoto[]).map((p) => [p._id, p]));
+      const nextMap = new Map((nextArr as DBUPhoto[]).map((p) => [p._id, p]));
+
+      // Deletions
+      for (const p of prevArr) {
+        if (p._id && !nextMap.has(p._id)) {
+          await deletePhoto(p._id);
+        }
+      }
+
+      // Creates + Updates
+      for (const p of nextArr) {
+        if (!p._id) {
+          // New → upload to Cloudinary via API and save
+          const created = await createPhoto({
+            name: p.name || "Photo",
+            data: p.data, // dataURL or http(s)
+            reportId: form.reportId,
+            section: sectionKey as string,
+            includeInSummary: p.includeInSummary,
+            caption: p.caption,
+            description: p.description,
+            figureNumber: p.figureNumber,
+          });
+
+          // write back ids/urls to state
+          setSectionPhotos((sp) => {
+            const copy = [...(sp[sectionKey] as DBUPhoto[])];
+            const idx = copy.findIndex((x) => x === p);
+            if (idx >= 0) copy[idx] = { ...p, _id: created._id, src: created.src, data: created.src };
+            return { ...sp, [sectionKey]: copy };
+          });
+        } else {
+          // Existing → only update if metadata changed
+          const before = prevMap.get(p._id);
+          if (
+            before &&
+            (before.caption !== p.caption ||
+              before.description !== p.description ||
+              before.includeInSummary !== p.includeInSummary ||
+              before.figureNumber !== p.figureNumber)
+          ) {
+            await updatePhoto(p._id, {
+              caption: p.caption,
+              description: p.description,
+              includeInSummary: p.includeInSummary,
+              figureNumber: p.figureNumber,
+            });
+          }
+        }
+      }
+    };
+  }
+
+  // Keep your external API the same:
+  const setPhotoBucket =
+    (key: keyof typeof sectionPhotos) =>
+    (p: DBUPhoto[]) =>
+      makePersistingSetter(key)(p);
+
   /* ---------------- Render ---------------- */
   return (
     <>
@@ -401,6 +541,28 @@ export default function Page() {
               <h1 className="text-2xl font-heading font-bold text-kiwi-dark">
                 nine<span className="text-kiwi-green">kiwi</span> Report Generator
               </h1>
+            </div>
+
+            {/* Auth status */}
+            <div className="flex items-center gap-3">
+              {user ? (
+                <>
+                  <span className="text-sm text-gray-600">Hi, {user.name}</span>
+                  <button onClick={logout} className="text-sm px-3 py-1 border rounded">
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <a href="/login" className="text-sm underline">
+                    Login
+                  </a>
+                  <span className="text-gray-400">/</span>
+                  <a href="/signup" className="text-sm underline">
+                    Signup
+                  </a>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -419,6 +581,11 @@ export default function Page() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Status radio */}
                 <div className="md:col-span-2">
+                  {!form.reportId && (
+                    <p className="text-sm text-red-600 mb-3">
+                      Enter a <b>Report ID</b> first to save photos to the database.
+                    </p>
+                  )}
                   <label className="block text-sm mb-2">Status</label>
                   <div className="flex gap-6">
                     {(["In Progress", "Completed", "On Track"] as const).map((v) => (
@@ -564,10 +731,11 @@ export default function Page() {
                   />
                   <span className="text-xs text-gray-500 mt-1 block">
                     {form.startInspectionTime &&
-                      ` (${new Date(`2000-01-01T${form.startInspectionTime}`).toLocaleTimeString(
-                        "en-US",
-                        { hour: "numeric", minute: "2-digit", hour12: true }
-                      )})`}
+                      ` (${new Date(`2000-01-01T${form.startInspectionTime}`).toLocaleTimeString("en-US", {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })})`}
                   </span>
                 </div>
 
@@ -973,11 +1141,7 @@ export default function Page() {
             <div className="flex flex-col sm:flex-row gap-3 no-print">
               <button
                 onClick={() =>
-                  generateFullReportPDF(
-                    form as any,
-                    adaptedSectionPhotos as any,
-                    signatureData
-                  )
+                  generateFullReportPDF(form as any, adaptedSectionPhotos as any, signatureData)
                 }
                 className="flex-1 bg-kiwi-green hover:bg-kiwi-dark text-white font-semibold py-3 px-6 rounded-lg transition flex items-center justify-center"
               >
@@ -991,16 +1155,10 @@ export default function Page() {
             <div className="bg-white rounded-xl p-6 shadow-sm sticky top-6">
               <h2 className="text-xl font-semibold text-kiwi-dark mb-4">Live Preview</h2>
 
-              <ReportPreview
-                form={form}
-                sectionPhotos={sectionPhotos}
-                signatureData={signatureData}
-              />
+              <ReportPreview form={form} sectionPhotos={sectionPhotos} signatureData={signatureData} />
 
               <div className="mt-6">
-                <h3 className="text-lg font-semibold text-kiwi-dark mb-3">
-                  Auto-Generated Summary
-                </h3>
+                <h3 className="text-lg font-semibold text-kiwi-dark mb-3">Auto-Generated Summary</h3>
                 <AutoSummary form={form} photos={summaryPhotosU} />
               </div>
             </div>
