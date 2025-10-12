@@ -6,6 +6,8 @@ const PUBLIC_PATHS = new Set([
   "/",              // optional, keep homepage public
   "/login",
   "/signup",
+  "/admin/login",
+  "/admin/signup",
 ]);
 
 export function middleware(req: NextRequest) {

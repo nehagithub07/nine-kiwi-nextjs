@@ -1,35 +1,21 @@
-import { Schema, model, models, Types } from "mongoose";
+import mongoose from "mongoose";
 
-
-export interface IPhoto {
-reportId?: string; // optional free-form id you already use in UI
-section?: string; // e.g. "background", "fieldObservation"
-name: string;
-src: string; // Cloudinary URL (or data URL if needed)
-includeInSummary?: boolean;
-caption?: string;
-description?: string;
-figureNumber?: number;
-uploadedBy?: Types.ObjectId; // reference to User
-createdAt: Date;
-updatedAt: Date;
-}
-
-
-const PhotoSchema = new Schema<IPhoto>(
-{
-reportId: { type: String },
-section: { type: String },
-name: { type: String, required: true },
-src: { type: String, required: true },
-includeInSummary: { type: Boolean, default: false },
-caption: { type: String },
-description: { type: String },
-figureNumber: { type: Number },
-uploadedBy: { type: Schema.Types.ObjectId, ref: "User" },
-},
-{ timestamps: true }
+const PhotoSchema = new mongoose.Schema(
+  {
+    reportId: { type: mongoose.Schema.Types.ObjectId, ref: "Report", required: true },
+    name: { type: String },
+    // Either base64/dataURL or a remote URL
+    data: { type: String },
+    url: { type: String },
+    caption: { type: String },
+    section: { type: String, default: "fieldObservation" },
+    includeInSummary: { type: Boolean },
+    figureNumber: { type: Number },
+    description: { type: String },
+  },
+  { timestamps: true }
 );
 
+PhotoSchema.index({ reportId: 1, createdAt: -1 });
 
-export const Photo = models.Photo || model<IPhoto>("Photo", PhotoSchema);
+export default mongoose.models.Photo || mongoose.model("Photo", PhotoSchema);

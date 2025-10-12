@@ -742,3 +742,47 @@ export async function generateSummaryPDF(
 export async function generateSummaryWord(_form: FormData, _summaryPhotos: PhotoData[]): Promise<void> {
   alert("Word export will be plain black & white and is coming soon. Please use PDF for now.");
 }
+
+// Add this function to your export.ts file
+export async function saveReportToDatabase(
+  form: FormData,
+  photos: Record<string, PhotoData[]>
+): Promise<string> {
+  try {
+    const allPhotos = [
+      ...(photos.background || []),
+      ...(photos.fieldObservation || []),
+      ...(photos.work || []),
+      ...(photos.safety || []),
+      ...(photos.equipment || []),
+      ...(photos.additional || []),
+    ].map((photo, index) => ({
+      ...photo,
+      section: Object.keys(photos).find(key => 
+        photos[key].includes(photo)
+      ) || 'fieldObservation',
+    }));
+
+    const response = await fetch('/api/reports/save', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        formData: form,
+        photos: allPhotos,
+      }),
+    });
+
+    const data = await response.json();
+    
+    if (!data.success) {
+      throw new Error('Failed to save report');
+    }
+
+    return data.reportId;
+  } catch (error) {
+    console.error('Error saving report:', error);
+    throw error;
+  }
+}
