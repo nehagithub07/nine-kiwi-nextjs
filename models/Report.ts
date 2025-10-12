@@ -1,47 +1,27 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, models, Model } from "mongoose";
 
-const ReportSchema = new mongoose.Schema(
+export interface IReportDoc {
+  userId: string; // from session token.id
+  reportId: string; // user-provided id, unique per user
+  status?: string;
+  data: Record<string, any>; // full form snapshot
+  signatureData?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+const ReportSchema = new Schema<IReportDoc>(
   {
-    reportId: String,
-    status: String,
-    inspectorName: String,
-    clientName: String,
-    companyName: String,
-    nameandAddressOfCompany: String,
-    contactPhone: String,
-    contactEmail: String,
-    location: String,
-    streetAddress: String,
-    city: String,
-    state: String,
-    country: String,
-    zipCode: String,
-    lat: String,
-    lon: String,
-    inspectionDate: String,
-    startInspectionTime: String,
-    workProgress: String,
-    safetyCompliance: String,
-    safetySignage: String,
-    scheduleCompliance: String,
-    materialAvailability: String,
-    workerAttendance: String,
-    additionalComments: String,
-    inspectorSummary: String,
-    recommendations: String,
-    backgroundManual: String,
-    backgroundAuto: String,
-    fieldObservationText: String,
-    signatureData: String,
-    temperature: String,
-    humidity: String,
-    windSpeed: String,
-    weatherDescription: String,
+    userId: { type: String, required: true, index: true },
+    reportId: { type: String, required: true },
+    status: { type: String },
+    data: { type: Schema.Types.Mixed, required: true },
+    signatureData: { type: String, default: null },
   },
   { timestamps: true }
 );
 
-ReportSchema.index({ createdAt: -1 });
-ReportSchema.index({ reportId: 1 });
+ReportSchema.index({ userId: 1, reportId: 1 }, { unique: true });
 
-export default mongoose.models.Report || mongoose.model("Report", ReportSchema);
+export const Report: Model<IReportDoc> = models.Report || mongoose.model<IReportDoc>("Report", ReportSchema);
+

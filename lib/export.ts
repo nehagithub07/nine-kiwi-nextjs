@@ -173,6 +173,14 @@ const footerBar = () => `<div class="nk-footer">Page&nbsp;<span class="nk-page-n
 function mount(html: string): () => void {
   const root = document.createElement("div");
   root.className = "nk-root";
+  // keep it rendered for layout, but fully off-screen and invisible
+  // Hide off-screen to avoid flashing content on the page
+  root.style.position = "fixed";
+  root.style.left = "-10000px";
+  root.style.top = "-10000px";
+  root.style.opacity = "0";
+  (root.style as any).pointerEvents = "none";
+  (root.style as any).zIndex = "-1";
   const style = document.createElement("style");
   style.textContent = THEME_CSS;
   root.appendChild(style);
@@ -231,7 +239,8 @@ async function waitForImages(root: HTMLElement): Promise<void> {
           }
           if (img.complete && img.naturalHeight > 0) return resolve();
           const done = () => resolve();
-          const to = setTimeout(done, 20000);
+          // Fail any slow images after ~9 seconds to keep total under 5-10s
+          const to = setTimeout(done, 9000);
           img.onload = () => { clearTimeout(to); resolve(); };
           img.onerror = () => { clearTimeout(to); resolve(); };
         })
@@ -242,11 +251,12 @@ async function waitForImages(root: HTMLElement): Promise<void> {
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default;
   return await html2canvas(node, {
-    scale: 3,
+    // slightly lower scale for faster generation while keeping legibility
+    scale: 2,
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
-    imageTimeout: 30000,
+    imageTimeout: 10000,
     logging: false,
     windowWidth: Math.max(node.scrollWidth, node.clientWidth),
     windowHeight: Math.max(node.scrollHeight, node.clientHeight),
@@ -619,7 +629,8 @@ async function renderRootToPDF(root: HTMLElement, filename: string): Promise<voi
 
     if (i > 0) pdf.addPage();
     const { data, type } = canvasToImg(canvas);
-    pdf.addImage(data, type, x, y, imgW, imgH, undefined, "SLOW");
+    // Use FAST compression for quicker generation; file may be slightly larger
+    pdf.addImage(data, type, x, y, imgW, imgH, undefined, "FAST");
   }
 
   pdf.save(filename);

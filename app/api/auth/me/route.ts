@@ -1,24 +1,11 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifyToken } from "@/lib/jwt";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../[...nextauth]/route";
 
 export async function GET() {
-  try {
-    const token = cookies().get("token")?.value;
-    if (!token) return NextResponse.json({ user: null }, { status: 200 });
-    const payload = verifyToken<{ sub?: string; email?: string; role?: string }>(token);
-    return NextResponse.json({
-      user: {
-        id: payload.sub || null,
-        email: payload.email || null,
-        role: payload.role || null,
-      },
-    });
-  } catch {
-    return NextResponse.json({ user: null }, { status: 200 });
-  }
+  const session = await getServerSession(authOptions);
+  const user = session?.user
+    ? { _id: (session.user as any).id, name: session.user.name, email: session.user.email, role: (session.user as any).role }
+    : null;
+  return NextResponse.json({ user });
 }
-

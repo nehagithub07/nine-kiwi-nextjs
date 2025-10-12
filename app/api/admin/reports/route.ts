@@ -1,72 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyToken } from "@/lib/jwt";
-import connectDB from "@/lib/db";
-import Report from "@/models/Report";
-import Photo from "@/models/Photo";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
+import { dbConnect } from "@/lib/mongodb";
+import { Report } from "@/models/Report";
+import { User } from "@/models/User";
 
 export async function GET(req: NextRequest) {
-  try {
-    // ✅ Use req.cookies (not cookies())
-    const token = req.cookies.get("token")?.value;
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const session = await getServerSession(authOptions as any);
+  const role = (session?.user as any)?.role;
+  if (!session || role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const payload = verifyToken<{ role?: string }>(token);
-    if (!payload || payload.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  const { searchParams } = new URL(req.url);
+  const userId = searchParams.get("userId") || undefined;
+  const reportId = searchParams.get("reportId") || undefined;
 
-    await connectDB();
-
-    // 🔹 Fetch all reports (latest first)
-    const reports = await Report.find({})
-      .sort({ createdAt: -1 })
-      .lean();
-
-    // 🔹 Fetch photos in parallel for efficiency
-    const reportsWithPhotos = await Promise.all(
-      reports.map(async (report) => {
-        const photos = await Photo.find({ reportId: report._id }).lean();
-
-        return {
-          id: report._id?.toString(),
-          reportId: report.reportId || "",
-          status: report.status || "",
-          inspectorName: report.inspectorName || "",
-          clientName: report.clientName || "",
-          companyName: report.companyName || "",
-          location: report.location || "",
-          streetAddress: report.streetAddress || "",
-          city: report.city || "",
-          state: report.state || "",
-          country: report.country || "",
-          zipCode: report.zipCode || "",
-          inspectionDate: report.inspectionDate || "",
-          startInspectionTime: report.startInspectionTime || "",
-          contactEmail: report.contactEmail || "",
-          contactPhone: report.contactPhone || "",
-          photoCount: photos.length,
-          createdAt: report.createdAt,
-          photos: photos.map((photo) => ({
-            id: photo._id?.toString(),
-            url: photo.data || photo.url,
-            caption: photo.caption || photo.name || "",
-            section: photo.section || "fieldObservation",
-          })),
-        };
-      })
-    );
-
-    return NextResponse.json(reportsWithPhotos);
-  } catch (error) {
-    console.error("Error fetching reports:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch reports" },
-      { status: 500 }
-    );
-  }
+  await dbConnect();
+  const q: any = {};
+  if (userId) q.userId = userId;
+  if (reportId) q.reportId = reportId;
+  const reports = await Report.find(q).sort({ updatedAt: -1 }).lean();
+  const userIds = Array.from(new Set(reports.map((r) => r.userId)));
+  const users = await User.find({ _id: { $in: userIds } }, { password: 0 }).lean();
+  const userMap = new Map(users.map((u) => [String(u._id), u]));
+  const items = reports.map((r) => ({
+    ...r,
+    user: userMap.get(String(r.userId)) || null,
+  }));
+  return NextResponse.json({ items });
 }
+

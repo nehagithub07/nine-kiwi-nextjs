@@ -1,30 +1,27 @@
-import { Schema, model, models } from "mongoose";
-
-
-export type UserRole = "user" | "admin";
-
+import mongoose, { Schema, models, Model } from "mongoose";
 
 export interface IUser {
-name: string;
-email: string;
-passwordHash: string;  
-role: UserRole;
-avatarUrl?: string;  
-createdAt: Date;
-updatedAt: Date;
+  name: string;
+  email: string;
+  password: string; // hashed
+  role?: "user" | "admin";
+  // password reset
+  resetToken?: string | null;
+  resetTokenExp?: Date | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-
 const UserSchema = new Schema<IUser>(
-{
-name: { type: String, required: true, trim: true },
-email: { type: String, required: true, unique: true, lowercase: true, index: true },
-passwordHash: { type: String, required: true },
-role: { type: String, enum: ["user", "admin"], default: "user" },
-avatarUrl: { type: String },
-},
-{ timestamps: true }
+  {
+    name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    resetToken: { type: String, default: null },
+    resetTokenExp: { type: Date, default: null },
+  },
+  { timestamps: true }
 );
 
-
-export const User = models.User || model<IUser>("User", UserSchema);
+export const User: Model<IUser> = models.User || mongoose.model<IUser>("User", UserSchema);

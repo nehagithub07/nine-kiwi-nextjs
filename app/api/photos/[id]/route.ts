@@ -1,54 +1,50 @@
 import { NextRequest, NextResponse } from "next/server";
-import connectDB from "@/lib/db";
-import Photo from "@/models/Photo";
+import { dbConnect } from "@/lib/mongodb";
+import { Photo } from "@/models/Photo";
+import { cloudinary } from "@/lib/cloudinary";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../auth/[...nextauth]/route";
 
-// GET single photo
-export async function GET(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions as any);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await connectDB();
-    const { id } = params;
-    const item = await Photo.findById(id);
-    if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(item);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    const body = await _req.json();
+    const update: any = {};
+    if (typeof body?.caption === "string") update.caption = body.caption;
+    if (typeof body?.description === "string") update.description = body.description;
+    if (typeof body?.includeInSummary === "boolean") update.includeInSummary = body.includeInSummary;
+    if (typeof body?.figureNumber === "number") update.figureNumber = body.figureNumber;
+    await dbConnect();
+    const doc = await Photo.findByIdAndUpdate(params.id, update, { new: true }).lean();
+    if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Update photo error", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// PATCH (update) photo
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const session = await getServerSession(authOptions as any);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    await connectDB();
-    const { id } = params;
-    const updates = await req.json();
-    const item = await Photo.findByIdAndUpdate(id, updates, { new: true });
-    if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(item);
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    await dbConnect();
+    const doc = await Photo.findById(params.id);
+    if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    // delete from Cloudinary first
+    if (doc.publicId) {
+      try {
+        await cloudinary.uploader.destroy(doc.publicId);
+      } catch (e) {
+        console.warn("Cloudinary destroy failed", e);
+      }
+    }
+    await Photo.findByIdAndDelete(params.id);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    console.error("Delete photo error", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// DELETE photo
-export async function DELETE(
-  _req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await connectDB();
-    const { id } = params;
-    const item = await Photo.findByIdAndDelete(id);
-    if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json({ message: "Deleted successfully" });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";

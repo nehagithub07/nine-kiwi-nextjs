@@ -1,0 +1,79 @@
+import { NextRequest, NextResponse } from "next/server";
+import { dbConnect } from "@/lib/mongodb";
+import { Photo } from "@/models/Photo";
+import { cloudinary } from "@/lib/cloudinary";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/[...nextauth]/route";
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const reportId = searchParams.get("reportId");
+  const section = searchParams.get("section");
+  if (!reportId) {
+    return NextResponse.json({ error: "Missing reportId" }, { status: 400 });
+  }
+  await dbConnect();
+  const query: any = { reportId };
+  if (section) query.section = section;
+  const items = await Photo.find(query).sort({ createdAt: 1 }).lean();
+  return NextResponse.json({ items });
+}
+
+export async function POST(req: NextRequest) {
+  // Require auth for create
+  const session = await getServerSession(authOptions as any);
+  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  try {
+    const body = await req.json();
+    const reportId = String(body?.reportId || "").trim();
+    const section = String(body?.section || "").trim();
+    const data = String(body?.data || "");
+    const name = String(body?.name || "Photo").trim();
+    const includeInSummary = !!body?.includeInSummary;
+    const caption = body?.caption ? String(body.caption) : undefined;
+    const description = body?.description ? String(body.description) : undefined;
+    const figureNumber = typeof body?.figureNumber === "number" ? body.figureNumber : undefined;
+
+    if (!reportId || !section || !data) {
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    await dbConnect();
+
+    const uploadRes = await cloudinary.uploader.upload(data, {
+      folder: process.env.CLOUDINARY_FOLDER || "ninekiwi",
+      resource_type: "auto",
+    });
+
+    const doc = await Photo.create({
+      reportId,
+      section,
+      name,
+      src: uploadRes.secure_url,
+      publicId: uploadRes.public_id,
+      includeInSummary,
+      caption,
+      description,
+      figureNumber,
+    });
+
+    return NextResponse.json({
+      item: {
+        _id: String(doc._id),
+        name: doc.name,
+        src: doc.src,
+        reportId: doc.reportId,
+        section: doc.section,
+        includeInSummary: doc.includeInSummary,
+        caption: doc.caption,
+        description: doc.description,
+        figureNumber: doc.figureNumber,
+      },
+    });
+  } catch (e) {
+    console.error("Create photo error", e);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  }
+}
+
