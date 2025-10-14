@@ -29,11 +29,13 @@ export async function POST(req: NextRequest) {
     }
 
     const res = NextResponse.json({ success: true });
+    const isHttps = req.nextUrl.protocol === "https:";
     res.cookies.set("nk_has_paid", "true", {
       httpOnly: true,
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7, // 7 days
+      secure: isHttps,
     });
     return res;
   } catch (e: any) {

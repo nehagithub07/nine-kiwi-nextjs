@@ -34,11 +34,16 @@ export async function middleware(req: NextRequest) {
   // Public pages bypass auth
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  // Require login for report tool
+  // Access to report tool requires either login or a valid paid cookie.
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
+    const paid = req.cookies.get("nk_has_paid")?.value === "true";
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
-    if (!token) return NextResponse.redirect(new URL("/login?callbackUrl=" + encodeURIComponent(req.nextUrl.pathname), req.url));
+    if (!token && !paid) {
+      const url = new URL("/login", req.url);
+      url.searchParams.set("callbackUrl", req.nextUrl.pathname);
+      return NextResponse.redirect(url);
+    }
   }
 
   // Require login for account page
