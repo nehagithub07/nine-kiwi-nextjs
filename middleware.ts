@@ -6,7 +6,6 @@ const PUBLIC_PATHS = new Set([
   "/",              // optional, keep homepage public
   "/login",
   "/signup",
-  "/pay",
   "/admin/login",
   "/admin/signup",
 ]);
@@ -17,12 +16,17 @@ export async function middleware(req: NextRequest) {
   // Always allow API auth endpoints
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
-  // If user already paid, skip /pay and go to /report
+  // Require login for /pay; if already paid, send to /report
   if (pathname === "/pay") {
     let token: any = null;
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    if (!token) {
+      const url = new URL("/login", req.url);
+      url.searchParams.set("callbackUrl", "/pay");
+      return NextResponse.redirect(url);
+    }
     const paid = req.cookies.get("nk_has_paid")?.value === "true";
-    if (token && paid) {
+    if (paid) {
       return NextResponse.redirect(new URL("/report", req.url));
     }
   }
@@ -56,4 +60,11 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/admin/:path*", "/report", "/report/:path*", "/account", "/account/:path*"] };
+export const config = { matcher: [
+  "/admin/:path*",
+  "/report",
+  "/report/:path*",
+  "/account",
+  "/account/:path*",
+  "/pay"
+] };
