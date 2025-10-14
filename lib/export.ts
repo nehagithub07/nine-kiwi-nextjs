@@ -770,6 +770,7 @@ export async function generateSummaryPDF(
 
 export async function generateSummaryWord(_form: FormData, _summaryPhotos: PhotoData[]): Promise<void> {
   const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } = await import("docx");
+  //@ts-ignore
   const fs_mod = await import("file-saver"); const saveAs = (fs_mod as any).saveAs || (fs_mod as any).default;
 
   function S2(v: unknown) { return v == null ? "" : String(v); }
@@ -807,6 +808,7 @@ export async function generateSummaryWord(_form: FormData, _summaryPhotos: Photo
       }
       if (dataUrl && dataUrl.startsWith("data:")) {
         const buf = dataUrlToUint8Array(dataUrl);
+        //@ts-ignore
         if (buf.length) children.push(new Paragraph({ children: [ new ImageRun({ data: buf, transformation: { width: 520, height: 280 } }) ] }));
       }
     }
@@ -836,6 +838,7 @@ export async function generateFullReportDOCX(
   siteMap?: PhotoData
 ): Promise<void> {
   const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } = await import("docx");
+  //@ts-ignore
   const fs_mod = await import("file-saver"); const saveAs = (fs_mod as any).saveAs || (fs_mod as any).default;
 
   function dataUrlToUint8Array(dataUrl: string): Uint8Array {
@@ -857,6 +860,7 @@ export async function generateFullReportDOCX(
     if (!data || !data.startsWith("data:")) return null;
     const buf = dataUrlToUint8Array(data);
     if (!buf.length) return null;
+    //@ts-ignore
     return new ImageRun({ data: buf, transformation: { width: 520, height: 320 } });
   }
 
@@ -969,6 +973,7 @@ export async function generateFullReportDOCX(
     const sigBuf = dataUrlToUint8Array(signatureData);
     if (sigBuf.length) {
       children.push(new Paragraph({ text: "Signature", heading: HeadingLevel.HEADING_2 }));
+      //@ts-ignore
       children.push(new Paragraph({ children: [ new ImageRun({ data: sigBuf, transformation: { width: 300, height: 120 } }) ] }));
     }
   }

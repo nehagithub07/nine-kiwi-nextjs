@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { cloudinary } from "@/lib/cloudinary";
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getServerSession(authOptions as any);
+  const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ user: null }, { status: 401 });
   await dbConnect();
   const doc = await User.findOne({ email: session.user.email }).lean();
@@ -26,7 +26,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await getServerSession(authOptions as any);
+  const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
@@ -65,4 +65,3 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: e?.message || "Server error" }, { status: 500 });
   }
 }
-

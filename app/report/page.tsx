@@ -964,7 +964,7 @@ export default function Page() {
 
               <WeatherPanel
                 form={form}
-                onField={updateField}
+                onField={(key, value) => updateField(key as keyof FormData, value as any)}
                 onFetched={(w) => {
                   updateField("temperature", String(w.temperature));
                   updateField("humidity", String(w.humidity));

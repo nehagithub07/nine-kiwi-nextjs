@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { dbConnect } from "@/lib/mongodb";
 import { Report } from "@/models/Report";
 import { User } from "@/models/User";
 
 export async function GET(req: NextRequest) {
-  const session = await getServerSession(authOptions as any);
+  const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
   if (!session || role !== "admin") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
@@ -28,4 +28,3 @@ export async function GET(req: NextRequest) {
   }));
   return NextResponse.json({ items });
 }
-

@@ -1,40 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 import { dbConnect } from "@/lib/mongodb";
 import { Report } from "@/models/Report";
 
-export async function GET(_req: NextRequest, { params }: { params: { reportId: string } }) {
-  const session = await getServerSession(authOptions as any);
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ reportId: string }> }) {
+  const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = (session.user as any).id as string;
+  const { reportId } = await params;
   await dbConnect();
-  const doc = await Report.findOne({ userId, reportId: params.reportId }).lean();
+  const doc = await Report.findOne({ userId, reportId }).lean();
   if (!doc) return NextResponse.json({ item: null }, { status: 200 });
   return NextResponse.json({ item: doc });
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: { reportId: string } }) {
-  const session = await getServerSession(authOptions as any);
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ reportId: string }> }) {
+  const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = (session.user as any).id as string;
+  const { reportId } = await params;
   const body = await req.json();
   await dbConnect();
   const update: any = {};
   if (body?.data) update.data = body.data;
   if (typeof body?.signatureData !== "undefined") update.signatureData = body.signatureData;
   if (typeof body?.status === "string") update.status = body.status;
-  const doc = await Report.findOneAndUpdate({ userId, reportId: params.reportId }, { $set: update }, { new: true }).lean();
+  const doc = await Report.findOneAndUpdate({ userId, reportId }, { $set: update }, { new: true }).lean();
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ item: doc });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { reportId: string } }) {
-  const session = await getServerSession(authOptions as any);
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ reportId: string }> }) {
+  const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const userId = (session.user as any).id as string;
+  const { reportId } = await params;
   await dbConnect();
-  await Report.findOneAndDelete({ userId, reportId: params.reportId });
+  await Report.findOneAndDelete({ userId, reportId });
   return NextResponse.json({ ok: true });
 }
-

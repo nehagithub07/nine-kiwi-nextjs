@@ -19,7 +19,8 @@ export async function middleware(req: NextRequest) {
 
   // If user already paid, skip /pay and go to /report
   if (pathname === "/pay") {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    let token: any = null;
+    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     const paid = req.cookies.get("nk_has_paid")?.value === "true";
     if (token && paid) {
       return NextResponse.redirect(new URL("/report", req.url));
@@ -31,19 +32,22 @@ export async function middleware(req: NextRequest) {
 
   // Require login for report tool
   if (pathname === "/report" || pathname.startsWith("/report/")) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    let token: any = null;
+    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token) return NextResponse.redirect(new URL("/login?callbackUrl=" + encodeURIComponent(req.nextUrl.pathname), req.url));
   }
 
   // Require login for account page
   if (pathname === "/account" || pathname.startsWith("/account/")) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    let token: any = null;
+    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token) return NextResponse.redirect(new URL("/login?callbackUrl=" + encodeURIComponent(req.nextUrl.pathname), req.url));
   }
 
   // Example: protect /admin only
   if (pathname.startsWith("/admin")) {
-    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    let token: any = null;
+    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token) return NextResponse.redirect(new URL("/login", req.url));
     const role = (token as any).role || "user";
     if (role !== "admin") return NextResponse.redirect(new URL("/", req.url));

@@ -3,20 +3,26 @@ import { dbConnect } from "@/lib/mongodb";
 import { Photo } from "@/models/Photo";
 import { cloudinary } from "@/lib/cloudinary";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authOptions } from "@/lib/auth";
 
-export async function PATCH(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions as any);
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
-    const body = await _req.json();
+    const { id } = await context.params;
+    const body = await req.json();
     const update: any = {};
     if (typeof body?.caption === "string") update.caption = body.caption;
     if (typeof body?.description === "string") update.description = body.description;
     if (typeof body?.includeInSummary === "boolean") update.includeInSummary = body.includeInSummary;
     if (typeof body?.figureNumber === "number") update.figureNumber = body.figureNumber;
+
     await dbConnect();
-    const doc = await Photo.findByIdAndUpdate(params.id, update, { new: true }).lean();
+    const doc = await Photo.findByIdAndUpdate(id, update, { new: true }).lean();
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ ok: true });
   } catch (e) {
@@ -25,26 +31,27 @@ export async function PATCH(_req: NextRequest, { params }: { params: { id: strin
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions as any);
+export async function DELETE(
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   try {
+    const { id } = await context.params;
     await dbConnect();
-    const doc = await Photo.findById(params.id);
+    const doc = await Photo.findById(id);
     if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    // delete from Cloudinary first
-    if (doc.publicId) {
-      try {
-        await cloudinary.uploader.destroy(doc.publicId);
-      } catch (e) {
-        console.warn("Cloudinary destroy failed", e);
-      }
+
+    if ((doc as any).publicId) {
+      try { await cloudinary.uploader.destroy((doc as any).publicId); }
+      catch (e) { console.warn("Cloudinary destroy failed", e); }
     }
-    await Photo.findByIdAndDelete(params.id);
+    await Photo.findByIdAndDelete(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("Delete photo error", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
