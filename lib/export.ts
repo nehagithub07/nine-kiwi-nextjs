@@ -3,9 +3,6 @@
 
 import type { jsPDF as JsPDFType } from "jspdf";
 
-/* =========================
-   TYPES
-   ========================= */
 export interface PhotoData {
   name: string;
   data: string;                  // dataURL or http(s)
@@ -69,10 +66,7 @@ export interface FormData extends WeatherData {
   // signature
   signatureData?: string;
 }
-
-/* =========================
-   THEME CSS (print-friendly)
-   ========================= */
+ 
 const THEME_CSS = `
 @page { size: A4; margin: 0; }
 .nk-root, .nk-root * {
@@ -131,9 +125,7 @@ const THEME_CSS = `
 .nk-sign img { max-width: 70mm; max-height: 28mm; object-fit: contain; }
 `;
 
-/* =========================
-   HELPERS
-   ========================= */
+ 
 const S = (v: unknown) => (v == null ? "" : String(v).trim());
 
 // format "HH:mm" -> "12:00 PM"
@@ -168,7 +160,7 @@ const headerBar = (form: FormData) => `
   </div>
 `;
 
-const footerBar = () => `<div class="nk-footer">Page&nbsp;<span class="nk-page-num">—</span></div>`;
+const footerBar = () => `<div class="nk-footer">Page&nbsp;<span class="nk-page-num">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span></div>`;
 
 function mount(html: string): () => void {
   const root = document.createElement("div");
@@ -191,7 +183,7 @@ function mount(html: string): () => void {
   return () => root.parentNode?.removeChild(root);
 }
 
-// robust fetch → dataURL
+// robust fetch ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ dataURL
 async function toDataURL(resp: Response): Promise<string> {
   if (!resp.ok) throw new Error(String(resp.status));
   const blob = await resp.blob();
@@ -205,21 +197,24 @@ async function toDataURL(resp: Response): Promise<string> {
 async function fetchToDataURL(url: string): Promise<string> {
   try {
     if (!url || url.startsWith("data:")) return url;
+    // If already proxied via our API, fetch directly
+    if (url.startsWith("/api/image-proxy")) {
+      const r0 = await fetch(url, { cache: "no-store" });
+      if (r0.ok) return await toDataURL(r0);
+    }
     const proxied = `/api/image-proxy?url=${encodeURIComponent(url)}`;
-    return await toDataURL(await fetch(proxied, { cache: "no-store" }));
+    const r1 = await fetch(proxied, { cache: "no-store" });
+    if (r1.ok) return await toDataURL(r1);
   } catch {}
   try {
-  const ws = `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ""))}`;
-  const response = await fetch(ws, { mode: "cors", cache: "no-cache" });
-  return await toDataURL(response);
-} catch (error) {
-  console.error("Failed to fetch image:", error);
-  throw error;
-}
-
+    const ws = `https://images.weserv.nl/?url=${encodeURIComponent(url.replace(/^https?:\/\//, ""))}`;
+    const r2 = await fetch(ws, { mode: "cors", cache: "no-cache" });
+    if (r2.ok) return await toDataURL(r2);
+  } catch {}
   try {
     const cp = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    return await toDataURL(await fetch(cp, { mode: "cors", cache: "no-cache" }));
+    const r3 = await fetch(cp, { mode: "cors", cache: "no-cache" });
+    if (r3.ok) return await toDataURL(r3);
   } catch {}
   console.warn("Image fetch failed for:", url);
   return "";
@@ -311,7 +306,7 @@ function coverPage(form: FormData): string {
 
     <div class="nk-cover-right"><b>REPORT DATE</b> ${todayStr(form.inspectionDate)}</div>
     <div class="nk-cover-prep">
-      <div><b>Prepared for:</b> ${S(form.clientName) || "Owner"}</div>
+      <div><b>Prepared for:</b> Owner</div>
       <div style="margin-top:6mm;"><b>Prepared by:</b> ${S(form.inspectorName) || "Inspector"}</div>
     </div>
 
@@ -383,7 +378,7 @@ function chunk<T>(arr: T[], n: number): T[][] {
 function obsTable(form: FormData): string {
   const rows: string[] = [];
 
-  // Address lines → build full postal, fallback to free-form location
+  // Address lines ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ build full postal, fallback to free-form location
   const addrJoined =
     [form.streetAddress, [form.city, form.state].filter(Boolean).join(", "),
      [form.country, form.zipCode].filter(Boolean).join(" ")]
@@ -392,7 +387,7 @@ function obsTable(form: FormData): string {
 
   // Weather snapshot
   const weatherBits: string[] = [];
-  if (S(form.temperature))        weatherBits.push(`${S(form.temperature)}°C`);
+  if (S(form.temperature))        weatherBits.push(`${S(form.temperature)}Ãƒâ€šÃ‚Â°C`);
   if (S(form.weatherDescription)) weatherBits.push(S(form.weatherDescription));
   if (S(form.humidity))           weatherBits.push(`Humidity ${S(form.humidity)}%`);
   if (S(form.windSpeed))          weatherBits.push(`Wind ${S(form.windSpeed)} m/s`);
@@ -402,7 +397,6 @@ function obsTable(form: FormData): string {
     if (v) rows.push(`<tr><td><b>${label}</b></td><td class="nk-meta">${v}</td></tr>`);
   };
 
-  // — Everything from your on-screen Status section —
   addRow("Status",      form.status);
   addRow("Report ID",                    form.reportId);
   addRow("Name of Filed Inspector",      form.inspectorName);
@@ -492,7 +486,8 @@ function buildBodyHTML(
   form: FormData,
   backgroundHTML: string,
   buckets: Record<string, PhotoData[]>,
-  fieldText?: string
+  fieldText?: string,
+  siteMap?: PhotoData
 ): string {
   const h = (f: FormData) => headerBar(f);
   const ftr = () => footerBar();
@@ -505,6 +500,28 @@ function buildBodyHTML(
     ${obsTable(form)}
     ${ftr()}
   </div>`;
+
+  // 1b. Optional Site Map directly after page 1
+  const siteMapHTML = (() => {
+    if (!siteMap || !siteMap.data) return "";
+    const isRemote = siteMap.data.startsWith("http");
+    const srcAttr = isRemote
+      ? `data-image-src="${siteMap.data}" src=""`
+      : `src="${siteMap.data}"`;
+    return `
+      <div class="nk-page">
+        ${h(form)}
+        <div class="nk-block-title">Site Location Map</div>
+        <div class="nk-photo-card">
+          <div class="nk-photo-img-wrap">
+            <img class="nk-photo-img" ${srcAttr} alt="Site Map" loading="eager" />
+          </div>
+          <div class="nk-caption">${S(siteMap.caption) || "Site location map"}</div>
+          ${S(siteMap.description) ? `<div class=\"nk-desc\">${S(siteMap.description)}</div>` : ""}
+        </div>
+        ${ftr()}
+      </div>`;
+  })();
 
   // 2. Background (text + 2-per-page photos)
   let backgroundSection = `
@@ -578,13 +595,13 @@ function buildBodyHTML(
       : `<p class="nk-p">No critical blockers observed at the time of inspection. Continue to monitor schedule, safety, and materials.</p>`;
   const extras = [
     S(form.additionalComments) && `<p class="nk-p"><b>Notes & Recommendations:</b> ${S(form.additionalComments)}</p>`,
-    S(form.inspectorSummary) && `<p class="nk-p"><b>Inspector’s Summary:</b> ${S(form.inspectorSummary)}</p>`,
+    S(form.inspectorSummary) && `<p class="nk-p"><b>InspectorÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢s Summary:</b> ${S(form.inspectorSummary)}</p>`,
     S(form.recommendations) && `<p class="nk-p"><b>Recommended Actions:</b> ${S(form.recommendations)}</p>`,
   ]
     .filter(Boolean)
     .join("");
   const sign = form.signatureData
-    ? `<div class="nk-sign"><img src="${form.signatureData}" alt="Signature" /><div><div><b>Inspector:</b> ${S(form.inspectorName) || "—"}</div></div></div>`
+    ? `<div class="nk-sign"><img src="${form.signatureData}" alt="Signature" /><div><div><b>Inspector:</b> ${S(form.inspectorName) || "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</div></div></div>`
     : "";
 
   const pageLast = `
@@ -596,11 +613,11 @@ function buildBodyHTML(
     ${ftr()}
   </div>`;
 
-  return page1 + backgroundSection + fieldObsSection + workSection + safetySection + equipmentSection + additionalSection + pageLast;
+  return page1 + siteMapHTML + backgroundSection + fieldObsSection + workSection + safetySection + equipmentSection + additionalSection + pageLast;
 }
 
 /* =========================
-   RENDER → PDF
+   RENDER ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ PDF
    ========================= */
 async function renderRootToPDF(root: HTMLElement, filename: string): Promise<void> {
   const { jsPDF } = await import("jspdf");
@@ -642,7 +659,8 @@ async function renderRootToPDF(root: HTMLElement, filename: string): Promise<voi
 export async function generateFullReportPDF(
   form: FormData,
   sectionPhotos: Record<string, PhotoData[]>,
-  signatureData: string | null
+  signatureData: string | null,
+  siteMap?: PhotoData
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
@@ -682,7 +700,7 @@ export async function generateFullReportPDF(
     coverPage(formPlus) +
     disclaimerPage(formPlus) +
     tocPage(formPlus, toc) +
-    buildBodyHTML(formPlus, backgroundHTML, buckets, formPlus.fieldObservationText);
+    buildBodyHTML(formPlus, backgroundHTML, buckets, formPlus.fieldObservationText, siteMap);
 
   const cleanup = mount(html);
   try {
@@ -751,7 +769,215 @@ export async function generateSummaryPDF(
 }
 
 export async function generateSummaryWord(_form: FormData, _summaryPhotos: PhotoData[]): Promise<void> {
-  alert("Word export will be plain black & white and is coming soon. Please use PDF for now.");
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } = await import("docx");
+  const fs_mod = await import("file-saver"); const saveAs = (fs_mod as any).saveAs || (fs_mod as any).default;
+
+  function S2(v: unknown) { return v == null ? "" : String(v); }
+  function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+    try {
+      const base64 = dataUrl.split(",")[1];
+      const binary = atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    } catch {
+      return new Uint8Array();
+    }
+  }
+
+  const children: any[] = [];
+  children.push(new Paragraph({ text: "NineKiwi - Auto Summary", heading: HeadingLevel.TITLE }));
+  children.push(new Paragraph({ text: `Report ID: ${S2(_form.reportId)}` }));
+  children.push(new Paragraph({ text: `Inspector: ${S2(_form.inspectorName)}` }));
+  children.push(new Paragraph({ text: `Client: ${S2(_form.clientName)}` }));
+  children.push(new Paragraph({ text: `Location: ${S2(_form.location)}` }));
+  children.push(new Paragraph({ text: `Date: ${S2(_form.inspectionDate)}` }));
+
+  // Photos listing
+  const photos = _summaryPhotos || [];
+  if (photos.length) {
+    children.push(new Paragraph({ text: "Photos", heading: HeadingLevel.HEADING_2 }));
+    for (let i = 0; i < photos.length; i++) {
+      const p = photos[i];
+      children.push(new Paragraph({ children: [new TextRun({ text: `${i + 1}. ${p.caption || p.name || "Photo"}`, bold: true })] }));
+      let dataUrl = p.data;
+      if (dataUrl && dataUrl.startsWith("http")) {
+        try { const d = await fetchToDataURL(dataUrl); if (d) dataUrl = d; } catch {}
+      }
+      if (dataUrl && dataUrl.startsWith("data:")) {
+        const buf = dataUrlToUint8Array(dataUrl);
+        if (buf.length) children.push(new Paragraph({ children: [ new ImageRun({ data: buf, transformation: { width: 520, height: 280 } }) ] }));
+      }
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `ninekiwi_summary_${S(_form.reportId) || "report"}.docx`);
+}
+
+// Simple adapter for AutoSummary component to export PDF
+export async function generateAutoSummaryPDF(form: any, photos: any[]): Promise<void> {
+  const mapped: PhotoData[] = (photos || []).map((p) => ({ name: p.name || "Photo", data: p.data, includeInSummary: true, caption: p.caption, description: p.description }));
+  await generateSummaryPDF(form, mapped, [], form?.signatureData || null);
+}
+
+export async function generateAutoSummaryWord(form: any, photos: any[]): Promise<void> {
+  const mapped: PhotoData[] = (photos || []).map((p) => ({ name: p.name || "Photo", data: p.data, includeInSummary: true, caption: p.caption, description: p.description }));
+  await generateSummaryWord(form, mapped);
+}
+
+// Full report to Word (lightweight structure)
+export async function generateFullReportDOCX(
+  form: FormData,
+  sectionPhotos: Record<string, PhotoData[]>,
+  signatureData: string | null,
+  siteMap?: PhotoData
+): Promise<void> {
+  const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } = await import("docx");
+  const fs_mod = await import("file-saver"); const saveAs = (fs_mod as any).saveAs || (fs_mod as any).default;
+
+  function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+    try {
+      const base64 = dataUrl.split(",")[1];
+      const binary = atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes;
+    } catch { return new Uint8Array(); }
+  }
+
+  async function toImageRun(ph: PhotoData): Promise<any | null> {
+    let data = ph.data;
+    if (data && data.startsWith("http")) {
+      try { const d = await fetchToDataURL(data); if (d) data = d; } catch {}
+    }
+    if (!data || !data.startsWith("data:")) return null;
+    const buf = dataUrlToUint8Array(data);
+    if (!buf.length) return null;
+    return new ImageRun({ data: buf, transformation: { width: 520, height: 320 } });
+  }
+
+  const children: any[] = [];
+  children.push(new Paragraph({ text: "NineKiwi - Site Inspection Report", heading: HeadingLevel.TITLE }));
+  children.push(new Paragraph({ text: `${S(form.companyName)} | ${S(form.location)} | ${S(form.inspectionDate)}` }));
+
+  // Optional site map as first image section
+  if (siteMap) {
+    const img = await toImageRun(siteMap);
+    if (img) {
+      children.push(new Paragraph({ text: "Site Location Map", heading: HeadingLevel.HEADING_2 }));
+      children.push(new Paragraph({ children: [img] }));
+    }
+  }
+  // 1. Site location and Field Condition Summary (key details)
+  const kv = (label: string, value?: string | number) =>
+    value != null && String(value).trim() !== ""
+      ? new Paragraph({
+          children: [
+            new TextRun({ text: `${label}: `, bold: true }),
+            new TextRun({ text: String(value) }),
+          ],
+        })
+      : null;
+  children.push(new Paragraph({ text: "1. Site location and Field Condition Summary", heading: HeadingLevel.HEADING_2 }));
+  const addrLine = [S(form.streetAddress), S(form.city), S(form.state), S(form.country), S(form.zipCode)].filter(Boolean).join(", ");
+  [
+    kv("Status", S(form.status)),
+    kv("Report ID", S(form.reportId)),
+    kv("Inspector", S(form.inspectorName)),
+    kv("Client", S(form.clientName)),
+    kv("Company", S(form.companyName)),
+    kv("Contact", [S(form.contactPhone), S(form.contactEmail)].filter(Boolean).join(" | ")),
+    kv("Location", addrLine || S(form.location)),
+    /*
+    kv("Coordinates", (S(form.lat) && S(form.lon)) ? `${S(form.lat)}, ${S(form.lon)}` : ""),
+    kv("Inspection Date", S(form.inspectionDate)),
+    kv("Start Time", S(form.startInspectionTime)),
+    kv("Temperature", S(form.temperature) ? ${S(form.temperature)}Â°C : ""),
+    kv("Humidity", S(form.humidity) ? ${S(form.humidity)}% : ""),
+    kv("Wind", S(form.windSpeed) ? ${S(form.windSpeed)} m/s : ""),
+    kv("Conditions", S(form.weatherDescription)),
+  */
+  ].forEach((p) => { if (p) children.push(p); });
+
+  // Add remaining key details
+  [
+    kv("Coordinates", S(form.lat) && S(form.lon) ? `${S(form.lat)}, ${S(form.lon)}` : ""),
+    kv("Inspection Date", S(form.inspectionDate)),
+    kv("Start Time", S(form.startInspectionTime)),
+    kv("Temperature", S(form.temperature) ? `${S(form.temperature)}°C` : ""),
+    kv("Humidity", S(form.humidity) ? `${S(form.humidity)}%` : ""),
+    kv("Wind", S(form.windSpeed) ? `${S(form.windSpeed)} m/s` : ""),
+    kv("Conditions", S(form.weatherDescription)),
+  ].forEach((p) => { if (p) children.push(p); });
+
+  // 2. Background (manual + auto)
+  const bgAutoWord = S(form.backgroundAuto) || autoBackground(form, sectionPhotos.background?.length ? sectionPhotos.background : sectionPhotos.fieldObservation || []);
+  if (S(form.backgroundManual) || bgAutoWord) {
+    children.push(new Paragraph({ text: "2. Background", heading: HeadingLevel.HEADING_2 }));
+    if (S(form.backgroundManual)) children.push(new Paragraph({ text: S(form.backgroundManual) }));
+    if (bgAutoWord) {
+      const plain = bgAutoWord.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
+      children.push(new Paragraph({ text: plain }));
+    }
+  }
+
+  // 3. Field Observation (intro)
+  children.push(new Paragraph({ text: "3. Field Observation", heading: HeadingLevel.HEADING_2 }));
+  if (S(form.fieldObservationText)) children.push(new Paragraph({ text: S(form.fieldObservationText) }));
+
+  // Personnel & Work Progress
+  const workInfoDoc: string[] = [];
+  if (S(form.workerAttendance)) workInfoDoc.push(`All workers present & on time?: ${S(form.workerAttendance)}`);
+  if (S(form.scheduleCompliance)) workInfoDoc.push(`Progress vs schedule: ${S(form.scheduleCompliance)}`);
+  if (S(form.materialAvailability)) workInfoDoc.push(`Materials available & usable?: ${S(form.materialAvailability)}`);
+  if (S(form.workProgress)) workInfoDoc.push(`Current work progress: ${S(form.workProgress)}`);
+  if (workInfoDoc.length) {
+    children.push(new Paragraph({ text: "Personnel & Work Progress", heading: HeadingLevel.HEADING_2 }));
+    workInfoDoc.forEach((t) => children.push(new Paragraph({ text: t })));
+  }
+
+  // Safety & Compliance
+  const safetyInfoDoc: string[] = [];
+  if (S(form.safetyCompliance)) safetyInfoDoc.push(`Safety Compliance: ${S(form.safetyCompliance)}`);
+  if (S(form.safetySignage)) safetyInfoDoc.push(`Safety Signage: ${S(form.safetySignage)}`);
+  if (safetyInfoDoc.length) {
+    children.push(new Paragraph({ text: "Safety & Compliance", heading: HeadingLevel.HEADING_2 }));
+    safetyInfoDoc.forEach((t) => children.push(new Paragraph({ text: t })));
+  }
+  // Add sections photos
+  for (const [key, arr] of Object.entries(sectionPhotos)) {
+    if (key === "background" || key === "fieldObservation") continue;
+    const photos = (arr || []).slice(0);
+    if (!photos.length) continue;
+    const title = key.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase());
+    children.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_2 }));
+    for (const ph of photos) {
+      const ir = await toImageRun(ph);
+      if (ir) {
+        children.push(new Paragraph({ children: [ir] }));
+        if (ph.caption) children.push(new Paragraph({ text: ph.caption }));
+        if (ph.description) children.push(new Paragraph({ text: ph.description }));
+      }
+    }
+  }
+
+  if (signatureData && signatureData.startsWith("data:")) {
+    const sigBuf = dataUrlToUint8Array(signatureData);
+    if (sigBuf.length) {
+      children.push(new Paragraph({ text: "Signature", heading: HeadingLevel.HEADING_2 }));
+      children.push(new Paragraph({ children: [ new ImageRun({ data: sigBuf, transformation: { width: 300, height: 120 } }) ] }));
+    }
+  }
+
+  const doc = new Document({ sections: [{ children }] });
+  const dateStr = new Date().toISOString().split("T")[0];
+  const nameBase = (S(form.reportId) || S(form.clientName) || S(form.location) || "report").replace(/[^\w.-]+/g, "_") || "report";
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, `ninekiwi_report_${nameBase}_${dateStr}.docx`);
 }
 
 // Add this function to your export.ts file

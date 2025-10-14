@@ -27,17 +27,27 @@ export default function LoginPage() {
       setError("Invalid email or password");
       return;
     }
-    router.push(res?.url || callbackUrl);
+    const me = await fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => r.json())
+      .catch(() => ({} as any));
+    if (!me?.user || me.user.role !== "admin") {
+      router.push(res?.url || callbackUrl);
+      return;
+    }
+    router.push("/admin");
   }
 
   return (
     <div className="min-h-[70vh] grid place-items-center p-4">
-      <form onSubmit={onSubmit} className="w-full max-w-sm bg-white shadow p-6 rounded-xl space-y-4">
+      <form
+        onSubmit={onSubmit}
+        className="w-full max-w-sm bg-white shadow p-6 rounded-xl space-y-4"
+      >
         <h1 className="text-xl font-semibold">Login</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => signIn("google", { callbackUrl: params.get("callbackUrl") || "/" })}
           className="w-full border px-4 py-2 rounded flex items-center justify-center gap-2"
         >
           <span>Continue with Google</span>
@@ -71,9 +81,27 @@ export default function LoginPage() {
           {loading ? "Signing in..." : "Sign In"}
         </button>
         <div className="text-sm text-center space-y-1">
-          <p>No account? <a href="/signup" className="underline">Sign up</a></p>
-          <p><a href="/forgot" className="underline">Forgot your password?</a></p>
-          <p>Are you an admin? <a href="/admin/login" className="underline">Admin Login</a> or <a href="/admin/signup" className="underline">Admin Signup</a></p>
+          <p>
+            No account?{" "}
+            <a href="/signup" className="underline">
+              Sign up
+            </a>
+          </p>
+          <p>
+            <a href="/forgot" className="underline">
+              Forgot your password?
+            </a>
+          </p>
+          <p>
+            Are you an admin?{" "}
+            <a href="/admin/login" className="underline">
+              Admin Login
+            </a>{" "}
+            or{" "}
+            <a href="/admin/signup" className="underline">
+              Admin Signup
+            </a>
+          </p>
         </div>
       </form>
     </div>

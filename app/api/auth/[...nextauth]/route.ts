@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "@/lib/email";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
@@ -60,20 +61,54 @@ export const authOptions: NextAuthOptions = {
           });
         }
       }
+
+      if (user.email) {
+        try {
+          const loginTime = new Date().toLocaleString("en-US", {
+            timeZone: "Asia/Kolkata", // Adjust to your timezone, e.g., IST
+          });
+          await sendEmail(
+            user.email,
+            "Nine Kiwi - Recent Login Notification",
+            `Hello ${
+              user.name || "User"
+            },\n\nYou recently logged in to Nine Kiwi on ${loginTime}.\n\nIf this wasn't you, please secure your account immediately.\n\nBest,\nThe Nine Kiwi Team`,
+            `
+              <h2>Nine Kiwi Login Notification</h2>
+              <p>Hello ${user.name || "User"},</p>
+              <p>You recently logged in to your Nine Kiwi account on ${loginTime}.</p>
+              <p>If this wasn't you, please secure your account immediately by resetting your password or contacting support.</p>
+              <p>Best,<br>The Nine Kiwi Team</p>
+            `
+          );
+          console.log(`Login email sent to ${user.email}`);
+        } catch (error) {
+          console.error(`Failed to send login email to ${user.email}:`, error);
+          // Don't block sign-in if email fails
+        }
+      }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = (user as any).id || token.id;
         token.role = (user as any).role || token.role || "user";
+        token.name = user.name || token.name;
+        (token as any).image = (user as any).image || (token as any).image;
       }
-      // Enrich token with DB role on subsequent calls
-      if (!token.role && token.email) {
+      if (trigger === "update" && session) {
+        if (session.name) token.name = session.name as any;
+        if ((session as any).image) (token as any).image = (session as any).image;
+      }
+      // Enrich token with latest DB fields on every call
+      if (token.email) {
         await dbConnect();
         const found = await User.findOne({ email: token.email }).lean();
         if (found) {
           token.id = String(found._id);
-          (token as any).role = (found as any).role || "user";
+          (token as any).role = (found as any).role || (token as any).role || "user";
+          token.name = found.name || token.name;
+          (token as any).image = (found as any).avatarUrl || (token as any).image;
         }
       }
       return token;
@@ -82,6 +117,8 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = token.id;
         (session.user as any).role = (token as any).role || "user";
+        session.user.name = token.name || session.user.name;
+        (session.user as any).image = (token as any).image || (session.user as any).image;
       }
       return session;
     },

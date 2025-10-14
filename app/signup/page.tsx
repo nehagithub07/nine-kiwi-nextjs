@@ -25,7 +25,7 @@ export default function SignupPage() {
       if (!res.ok) throw new Error(data?.error || "Signup failed");
       // auto sign-in
       await signIn("credentials", { redirect: false, email, password });
-      router.push("/");
+      router.push("/pay");
     } catch (e: any) {
       setError(e?.message || "Signup failed");
     } finally {
@@ -40,7 +40,7 @@ export default function SignupPage() {
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="button"
-          onClick={() => signIn("google", { callbackUrl: "/" })}
+          onClick={() => signIn("google", { callbackUrl: "/pay" })}
           className="w-full border px-4 py-2 rounded flex items-center justify-center gap-2"
         >
           <span>Continue with Google</span>

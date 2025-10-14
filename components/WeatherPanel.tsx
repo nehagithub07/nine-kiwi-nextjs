@@ -240,3 +240,4 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     </div>
   );
 }
+
