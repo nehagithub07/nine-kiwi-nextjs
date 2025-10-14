@@ -37,7 +37,7 @@ export async function middleware(req: NextRequest) {
   // Access to report tool requires either login or a valid paid cookie.
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
-    const paid = req.cookies.get("nk_has_paid")?.value === "true";
+    const paid = req.cookies.get("nk_has_paid")?.value === "true" || req.cookies.get("nk_has_paid_public")?.value === "true";
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token && !paid) {
       const url = new URL("/login", req.url);

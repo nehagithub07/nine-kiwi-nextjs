@@ -110,6 +110,11 @@ export default function PayPage() {
               response.razorpay_payment_id,
               response.razorpay_signature
             );
+            try {
+              const secure = location.protocol === "https:" ? "; Secure" : "";
+              document.cookie = `nk_has_paid=true; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${secure}`;
+              document.cookie = `nk_has_paid_public=true; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${secure}`;
+            } catch {}
             alert("Payment successful! Redirecting to the report tool.");
             window.location.replace("/report");
           } catch (err: any) {
