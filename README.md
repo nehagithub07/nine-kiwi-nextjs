@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# NineKiwi – Global Project Management for the Real World
 
-## Getting Started
+**NineKiwi** is a modern, multilingual, mobile-first project management platform tailored for the diverse construction ecosystem. It empowers construction teams to generate professional PDF reports on-site, facilitating seamless communication and efficient project management.
 
-First, run the development server:
+---
+
+## 🚀 Live Demo
+
+Experience NineKiwi in action:
+
+👉 [nine-kiwi-nextjs-ibx7.vercel.app](https://nine-kiwi-nextjs-ibx7.vercel.app/)
+
+---
+ 
+## 🔧 Features
+
+* **PDF Report Generator**: Instantly generate professional inspection reports.
+* **Voice-to-Text**: Dictate reports on-site using powerful voice recognition.
+* **Photo Upload with GPS**: Add photos and notes directly from the site, with geotagging for trust and transparency.
+* **Multilingual Support**: Break language barriers with real-time translation for diverse workforces.
+* **Admin Panel**: Manage user details, view report IDs, and download generated reports in PDF form.
+* **Payment Integration**: Integrated Razorpay for seamless payment processing.
+
+---
+
+## 🛠️ Technologies Used
+
+* **Frontend**: Next.js, React, Tailwind CSS
+* **Backend**: Node.js, Express.js
+* **Database**: MongoDB
+* **Cloud Storage**: Cloudinary
+* **Payment Gateway**: Razorpay
+* **Voice Recognition**: Web Speech API
+
+---
+
+## 📥 Installation
+
+Clone this repository:
+
+```bash
+git clone https://github.com/nehagithub07/nine-kiwi-nextjs.git
+cd nine-kiwi-nextjs
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Set up environment variables:
+
+```bash
+cp .env.example .env
+```
+
+Configure your `.env` file with appropriate values.
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Access the application at [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 📄 PDF Report Example
 
-## Learn More
+To view a sample generated PDF report:
 
-To learn more about Next.js, take a look at the following resources:
+👉 [Sample Report](https://drive.google.com/file/d/12WFixQywXWV4ZBBfC1EDv8OL-vJStAg3/view?usp=sharing)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🧪 Contributing
 
-## Deploy on Vercel
+Contributions are welcome! Please fork this repository, create a new branch, and submit a pull request with your proposed changes.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📧 Contact
+
+For inquiries or support, please reach out to nehasaniya465@gmail.com and [nehagithub07@gmail.com](mailto:nehagithub07@gmail.com).
+
+ 
