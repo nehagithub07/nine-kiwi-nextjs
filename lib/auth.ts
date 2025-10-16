@@ -260,9 +260,18 @@ export const authOptions: NextAuthOptions = {
       : []),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, account }) {
+      const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+      // On initial sign-in, prefer role from the authenticated user object
       if (user) {
-        (token as any).role = (user as any).role || "user";
+        const incomingRole = (user as any).role || (token as any).role;
+        (token as any).role = incomingRole || (token?.email && token.email.toLowerCase() === adminEmail ? "admin" : "user");
+      } else {
+        // No new user info: ensure admin email always maps to admin role
+        if (token?.email && token.email.toLowerCase() === adminEmail) {
+          (token as any).role = "admin";
+        }
+        (token as any).role = (token as any).role || "user";
       }
       return token;
     },
@@ -273,9 +282,15 @@ export const authOptions: NextAuthOptions = {
       }
       return session;
     },
-    async signIn({ user }) {
+    async signIn({ user, account }) {
       // Best-effort login email (non-blocking)
       try {
+        // Elevate admin by email for OAuth logins too
+        const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+        if (user?.email && user.email.toLowerCase() === adminEmail) {
+          (user as any).role = "admin";
+        }
+
         const h = await headers();
         const xf = h.get("x-forwarded-for");
         const xr = h.get("x-real-ip");
