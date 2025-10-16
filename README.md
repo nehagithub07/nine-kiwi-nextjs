@@ -83,6 +83,6 @@ Contributions are welcome! Please fork this repository, create a new branch, and
 
 ## 📧 Contact
 
-For inquiries or support, please reach out to nehasaniya465@gmail.com and [nehagithub07@gmail.com](mailto:nehagithub07@gmail.com).
+For inquiries or support, please reach out to nehasaniya465@gmail.com  
 
  
