@@ -191,39 +191,60 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer className="bg-kiwi-black text-kiwi-light py-16">
-        <div className="container mx-auto px-6 text-center">
-          <div className="flex flex-col items-center gap-8">
-            <div className="flex items-center space-x-3">
-              <Image
-                src="/logo.png"
-                alt="NineKiwi Logo"
-                width={40}
-                height={40}
-              />
-              <span className="text-2xl font-heading font-bold text-white">
-                nine<span className="text-kiwi-green">kiwi</span>
-              </span>
+      {/* Enhanced Footer - Simple UI Improvement */}
+      <footer className="bg-kiwi-black text-kiwi-light py-12 sm:py-16 relative overflow-hidden">
+        {/* Subtle decorative elements */}
+        <div className="absolute inset-0 opacity-5">
+          <div className="absolute top-10 left-10 w-24 h-24 border border-kiwi-green rounded-full" />
+          <div className="absolute bottom-10 right-10 w-32 h-32 border border-kiwi-green rounded-full" />
+        </div>
+
+        <div className="container mx-auto px-4 sm:px-6 relative z-10">
+          <div className="flex flex-col items-center gap-6 sm:gap-8">
+            {/* Logo Section */}
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex items-center space-x-3">
+                <Image
+                  src="/logo.png"
+                  alt="NineKiwi Logo"
+                  width={44}
+                  height={44}
+                  className="drop-shadow-lg"
+                />
+                <span className="text-2xl sm:text-3xl font-heading font-bold text-white">
+                  nine<span className="text-kiwi-green">kiwi</span>
+                </span>
+              </div>
+              <p className="text-sm sm:text-base text-kiwi-gray text-center max-w-md px-4">
+                Building the future of construction project management
+              </p>
             </div>
-            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
-              <Link href="/report" className="hover:text-kiwi-green transition">
-                Free Report Tool
-              </Link>
+
+            {/* Contact Link */}
+            <div className="flex justify-center">
               <a
-                href="mailto:hello@ninekiwi.com"
-                className="hover:text-kiwi-green transition"
+                href="/contact"
+                className="inline-flex items-center gap-2 text-sm sm:text-base hover:text-kiwi-green transition-colors duration-300 px-6 py-2.5 rounded-full border border-kiwi-dark hover:border-kiwi-green"
               >
-                Contact
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                Contact Us
               </a>
             </div>
-            <div className="text-center text-sm">
-              <p className="text-kiwi-tan">
+
+            {/* Divider */}
+            <div className="w-full max-w-4xl h-px bg-gradient-to-r from-transparent via-kiwi-dark to-transparent" />
+
+            {/* Bottom Text */}
+            <div className="text-center space-y-2 px-4">
+              <p className="text-sm text-kiwi-tan">
                 © 2025 NineKiwi. All rights reserved.
               </p>
-              <p className="text-kiwi-gray mt-2">
+              {/* <p className="text-xs sm:text-sm text-kiwi-gray max-w-xl mx-auto">
                 Currently in development - our team is busy learning Flutter and
                 improving our social skills!
-              </p>
+              </p> */}
             </div>
           </div>
         </div>

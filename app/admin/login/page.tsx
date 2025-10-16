@@ -1,14 +1,23 @@
 "use client";
-import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { useEffect, useState } from "react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // If already authenticated as admin, skip the login page
+  useEffect(() => {
+    const role = (session?.user as any)?.role;
+    if (role === "admin") {
+      router.replace("/admin");
+    }
+  }, [session, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -34,14 +43,7 @@ export default function AdminLoginPage() {
       <form onSubmit={onSubmit} className="w-full max-w-sm bg-white shadow p-6 rounded-xl space-y-4">
         <h1 className="text-xl font-semibold">Admin Login</h1>
         {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          type="button"
-          onClick={() => signIn("google", { callbackUrl: "/admin" })}
-          className="w-full border px-4 py-2 rounded flex items-center justify-center gap-2"
-        >
-          <span>Continue with Google</span>
-        </button>
-        <div className="text-center text-xs text-gray-400">or</div>
+        {/* Credentials only for admin login */}
         <div className="space-y-1">
           <label className="text-sm">Admin Email</label>
           <input type="email" className="w-full border rounded px-3 py-2" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -54,7 +56,6 @@ export default function AdminLoginPage() {
           {loading ? "Signing in..." : "Sign In"}
         </button>
         <div className="text-sm text-center space-y-1">
-          <p>Need an account? <a href="/admin/signup" className="underline">Admin Signup</a></p>
           <p><a href="/forgot" className="underline">Forgot your password?</a></p>
         </div>
       </form>

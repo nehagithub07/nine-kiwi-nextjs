@@ -16,6 +16,12 @@ export default function Navbar() {
   const pathname = usePathname();
   const hideOnReport = pathname?.startsWith("/report");
 
+  // Close menus on route change
+  useEffect(() => {
+    setOpen(false);
+    setMenuOpen(false);
+  }, [pathname]);
+
   async function fetchProfile() {
     try {
       const res = await fetch("/api/account", { cache: "no-store", credentials: "include" });
@@ -29,7 +35,6 @@ export default function Navbar() {
     if (user && !profile) {
       fetchProfile();
     }
-    // listen for account updates across the app
     const onUpdated = () => fetchProfile();
     window.addEventListener("nk-profile-updated" as any, onUpdated as any);
     return () => window.removeEventListener("nk-profile-updated" as any, onUpdated as any);
@@ -47,32 +52,56 @@ export default function Navbar() {
     return (
       <Link
         href={href}
-        className={`text-sm px-3 py-1.5 rounded ${
-          active ? "bg-kiwi-light text-green-600" : "hover:bg-green-50"
+        className={`relative text-sm font-medium px-4 py-2 rounded-lg transition-all duration-200 ${
+          active 
+            ? "bg-[#78c850]/10 text-[#78c850] shadow-sm" 
+            : "text-gray-700 hover:bg-[#78c850]/5 hover:text-[#78c850]"
         }`}
       >
         {children}
+        {active && (
+          <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#78c850] rounded-full" />
+        )}
       </Link>
     );
   };
 
   return (
-    // Keep hooks order consistent; decide to render or not here
     hideOnReport ? null : (
-    <header className="bg-[#f0f5ec] top-0 z-50 absolute w-full">
-      <nav className="container mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <Image src="/logo.png" width={36} height={36} alt="nineKiwi_logo" />
-          <span className="text-xl font-heading font-bold text-kiwi-dark">
-            nine<span className="text-green-600">kiwi</span>
+    <header className="sticky top-0 z-50 w-full border-b border-[#78c850]/20 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-sm">
+      <nav className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+        {/* Logo */}
+        <Link href="/" className="flex items-center gap-2.5 group" aria-label="Ninekiwi Home">
+          <div className="relative">
+            <Image 
+              src="/logo.png" 
+              width={40} 
+              height={40} 
+              alt="Ninekiwi logo" 
+              className="transition-transform duration-300 group-hover:scale-110"
+            />
+            <div className="absolute inset-0 bg-[#78c850]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+          </div>
+          <span className="text-xl font-heading font-extrabold tracking-tight">
+            <span className="text-gray-800">nine</span>
+            <span className="bg-gradient-to-r from-[#78c850] to-[#78c850] bg-clip-text text-transparent">kiwi</span>
           </span>
         </Link>
 
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex items-center gap-2">
+          <NavLink href="/">Home</NavLink>
+          
+          <NavLink href="/pay">Payments</NavLink>
+          <NavLink href="/contact">Contact</NavLink>
+          {user?.role === "admin" && <NavLink href="/admin">Admin</NavLink>}
+        </div>
+
+        {/* Desktop Profile Menu */}
         <div className="hidden md:flex items-center gap-4">
-          {/* Profile + Main Menu dropdown */}
           <div className="relative">
             <button
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-green-500 hover:bg-green-50"
+              className="flex items-center gap-3 px-4 py-2 rounded-full border-2 border-[#78c850]/30 hover:border-[#78c850] hover:bg-[#78c850]/5 transition-all duration-200 group"
               onClick={async () => {
                 if (!profile && user) {
                   try {
@@ -88,139 +117,223 @@ export default function Navbar() {
               aria-haspopup="menu"
               aria-expanded={menuOpen}
             >
-              {/* avatar */}
-              <span className="inline-flex h-8 w-8 rounded-full overflow-hidden bg-kiwi-light border">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
+              {/* Avatar */}
+              <span className="inline-flex h-9 w-9 rounded-full overflow-hidden bg-gradient-to-br from-[#78c850] to-[#78c850] border-2 border-white shadow-md ring-2 ring-[#78c850]/20">
                 {profile?.avatarUrl || (user as any)?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={(profile?.avatarUrl || (user as any)?.image) as string} alt="avatar" className="h-full w-full object-cover" />
                 ) : (
-                  <span className="h-full w-full grid place-items-center text-kiwi-dark text-sm">
+                  <span className="h-full w-full grid place-items-center text-white text-sm font-semibold">
                     {(user?.name || "U").slice(0, 1).toUpperCase()}
                   </span>
                 )}
               </span>
-              <span className="text-sm text-green-600">{user ? `Hi, ${profile?.name || user.name}` : "Menu"}</span>
-              <svg className="w-4 h-4 text-green-600" viewBox="0 0 20 20" fill="currentColor"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
+              <span className="text-sm font-medium text-gray-700 group-hover:text-[#78c850] transition-colors">
+                {user ? `Hi, ${(profile?.name || user.name)?.split(' ')[0]}` : "Menu"}
+              </span>
+              <svg 
+                className={`w-4 h-4 text-[#78c850] transition-transform duration-200 ${menuOpen ? 'rotate-180' : ''}`} 
+                viewBox="0 0 20 20" 
+                fill="currentColor"
+              >
+                <path d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/>
+              </svg>
             </button>
 
+            {/* Dropdown Menu */}
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-60 bg-white border rounded-xl shadow-lg z-50 py-2">
-                {user ? (
-                  <div className="px-3 pb-2 border-b">
-                    <div className="flex items-center gap-2 py-2">
-                      <span className="inline-flex h-9 w-9 rounded-full overflow-hidden bg-kiwi-light border">
-                        {profile?.avatarUrl || (user as any)?.image ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={(profile?.avatarUrl || (user as any)?.image) as string} alt="avatar" className="h-full w-full object-cover" />
-                        ) : (
-                          <span className="h-full w-full grid place-items-center text-green-600 text-sm">
-                            {(user?.name || "U").slice(0, 1).toUpperCase()}
-                          </span>
-                        )}
-                      </span>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-green-600 truncate">{profile?.name || user.name}</div>
-                        <div className="text-xs text-gray-500 truncate">{profile?.email || user.email}</div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 mt-3 w-72 bg-white border border-[#78c850]/20 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  {user && (
+                    <div className="px-4 py-4 bg-gradient-to-br from-[#78c850]/10 to-[#78c850]/5 border-b border-[#78c850]/20">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex h-12 w-12 rounded-full overflow-hidden bg-gradient-to-br from-[#78c850] to-[#78c850] border-2 border-white shadow-md">
+                          {profile?.avatarUrl || (user as any)?.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={(profile?.avatarUrl || (user as any)?.image) as string} alt="avatar" className="h-full w-full object-cover" />
+                          ) : (
+                            <span className="h-full w-full grid place-items-center text-white text-base font-semibold">
+                              {(user?.name || "U").slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-semibold text-gray-800 truncate">{profile?.name || user.name}</div>
+                          <div className="text-xs text-gray-600 truncate">{profile?.email || user.email}</div>
+                        </div>
                       </div>
                     </div>
+                  )}
+                  
+                  <div className="py-2">
+                    <Link href="/account" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
+                      <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Account Settings
+                    </Link>
+                    <Link href="/pay" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
+                      <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      NineKiwi Payments
+                    </Link>
+                    <Link href="/early-access" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
+                      <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Get Early Access
+                    </Link>
+                    
+                    {user?.role === "admin" && (
+                      <Link href="/admin" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
+                        <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Admin Dashboard
+                      </Link>
+                    )}
                   </div>
-                ) : null}
-                <div className="py-1">
-                  <Link href="/account" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Account</Link>
-                  <Link href="/pay" className="block px-4 py-2 text-sm hover:bg-kiwi-light">NineKiwi Payments</Link>
-                  <Link href="/early-access" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Get Early Access</Link>
-                  <Link href="/report" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Report Tool</Link>
-                  {user?.role === "admin" && (
-                    <Link href="/admin" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Admin Dashboard</Link>
-                  )}
+                  
+                  <div className="border-t border-[#78c850]/20 p-3">
+                    {!user ? (
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-2">
+                          <Link href="/login" className="inline-flex items-center justify-center rounded-lg border-2 border-[#78c850] text-[#78c850] hover:bg-[#78c850]/5 font-medium transition-all px-3 py-2 text-sm">
+                            Login
+                          </Link>
+                          <Link href="/signup" className="inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-[#78c850] to-[#78c850] hover:from-[#78c850] hover:to-[#78c850] text-white font-medium transition-all px-3 py-2 text-sm shadow-md">
+                            Sign up
+                          </Link>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 pt-1">
+                          <Link href="/admin/login" className="text-xs text-center text-gray-500 hover:text-[#78c850] underline py-1">
+                            Admin Login
+                          </Link>
+                          
+                        </div>
+                      </div>
+                    ) : (
+                      <button 
+                        onClick={() => signOut({ callbackUrl: "/" })} 
+                        className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 font-medium transition-all text-sm"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        Logout
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="border-t">
-                  {!user ? (
-                    <div className="py-1">
-                      <Link href="/login" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Login</Link>
-                      <Link href="/signup" className="block px-4 py-2 text-sm hover:bg-kiwi-light">Sign up</Link>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }}
-                      className="w-full text-left px-4 py-2 text-sm hover:bg-kiwi-light"
-                    >
-                      Logout
-                    </button>
-                  )}
-                </div>
-              </div>
+              </>
             )}
           </div>
         </div>
 
+        {/* Mobile Menu Button */}
         <button
-          className="md:hidden text-green-600 p-2 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40"
+          className="md:hidden text-[#78c850] p-2 rounded-xl hover:bg-[#78c850]/5 transition-colors"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
           aria-expanded={open}
           aria-controls="mobile-menu"
         >
-          ☰
+          {open ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          ) : (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          )}
         </button>
       </nav>
 
+      {/* Mobile Menu */}
       <div
         id="mobile-menu"
         aria-hidden={!open}
-        className={`md:hidden border-t bg-white overflow-hidden transition-all duration-300 ease-out ${
+        className={`md:hidden border-t border-[#78c850]/20 bg-white/95 backdrop-blur overflow-hidden transition-all duration-300 ease-out ${
           open
-            ? "max-h-[520px] opacity-100 pointer-events-auto"
-            : "max-h-0 opacity-0 pointer-events-none"
+            ? "max-h-[600px] opacity-100"
+            : "max-h-0 opacity-0"
         }`}
       >
-        <div
-          className={`container mx-auto px-4 py-3 flex flex-col gap-3 transition-opacity duration-300 ${
-            open ? "opacity-100" : "opacity-0"
-          }`}
-        >
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Link href="/account" className="px-4 py-2 rounded border text-sm text-green-600 hover:bg-green-50 w-full text-center">Account</Link>
-            <Link href="/pay" className="px-4 py-2 rounded border text-sm text-green-600 hover:bg-green-50 w-full text-center">NineKiwi Payments</Link>
-            <Link href="/early-access" className="px-4 py-2 rounded text-green-600 text-white hover:bg-green-800 w-full text-center">Get Early Access</Link>
-            <Link href="/report" className="px-4 py-2 rounded border text-sm text-green-600 hover:bg-green-50 w-full text-center">Report Tool</Link>
+        <div className={`container mx-auto px-4 py-4 space-y-3 transition-opacity duration-300 ${open ? "opacity-100" : "opacity-0"}`}>
+          {/* User Info (Mobile) */}
+          {user && (
+            <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-[#78c850]/10 to-[#78c850]/5 rounded-xl border border-[#78c850]/20">
+              <span className="inline-flex h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-[#78c850] to-[#78c850] border-2 border-white shadow-md">
+                {profile?.avatarUrl || (user as any)?.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={(profile?.avatarUrl || (user as any)?.image) as string} alt="avatar" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="h-full w-full grid place-items-center text-white text-sm font-semibold">
+                    {(user?.name || "U").slice(0, 1).toUpperCase()}
+                  </span>
+                )}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-semibold text-gray-800 truncate">{profile?.name || user.name}</div>
+                <div className="text-xs text-gray-600 truncate">{profile?.email || user.email}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Navigation Links */}
+          <div className="space-y-2">
+            <Link href="/" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+              Home
+            </Link>
+            
+            <Link href="/pay" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+              Payments
+            </Link>
+            <Link href="/contact" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+              Contact
+            </Link>
+            <Link href="/account" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+              Account
+            </Link>
+            {user?.role === "admin" && (
+              <Link href="/admin" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+                Admin
+              </Link>
+            )}
           </div>
 
+          {/* Auth Buttons */}
           {!user ? (
-            <>
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center rounded-full border-2 border-green-500 text-green-700 hover:bg-green-50 hover:text-green-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40 transition-colors px-4 py-2 text-sm font-semibold w-full"
-              >
-                Login
-              </Link>
-              <Link
-                href="/signup"
-                className="inline-flex items-center justify-center rounded-full bg-green-500 hover:bg-green-600 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500/40 transition-colors px-4 py-2 text-sm font-semibold shadow-sm w-full"
-              >
-                Sign up
-              </Link>
-              <Link href="/admin/login" className="underline">
-                Admin Login
-              </Link>
-              <Link href="/admin/signup" className="underline">
-                Admin Signup
-              </Link>
-            </>
-          ) : (
-            <>
-              {user.role === "admin" && (
-                <Link href="/admin" className="px-3 py-2 border rounded">
-                  Admin Dashboard
+            <div className="space-y-2 pt-2">
+              <div className="grid grid-cols-1 gap-2">
+                <Link href="/login" className="inline-flex items-center justify-center rounded-lg border-2 border-[#78c850] text-[#78c850] hover:bg-[#78c850]/5 font-medium transition-all px-4 py-2.5 text-sm">
+                  Login
                 </Link>
-              )}
-              <button
-                onClick={() => signOut({ callbackUrl: "/" })}
-                className="px-3 py-2 border rounded text-left hover:bg-green-50"
-              >
-                Logout
-              </button>
-            </>
+                <Link href="/signup" className="inline-flex items-center justify-center rounded-lg bg-[#78c850] hover:bg-[#78c850] text-white font-medium transition-all px-4 py-2.5 text-sm shadow-md">
+                  Sign up
+                </Link>
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                <Link href="/admin/login" className="text-xs text-center text-gray-500 hover:text-[#78c850] underline py-1">
+                  Admin Login
+                </Link>
+                
+              </div>
+            </div>
+          ) : (
+            <button 
+              onClick={() => signOut({ callbackUrl: "/" })} 
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 font-medium transition-all text-sm"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </button>
           )}
         </div>
       </div>
@@ -228,3 +341,8 @@ export default function Navbar() {
     )
   );
 }
+
+
+
+
+

@@ -43,17 +43,7 @@ export default function PayPage() {
     })();
   }, []);
 
-  // If already paid, skip this page and go to the report tool
-  useEffect(() => {
-    (async () => {
-      try {
-        const s = await fetch("/api/payment/status", { cache: "no-store", credentials: "include" }).then((r) => r.json());
-        if (s?.paid) {
-          router.replace("/report");
-        }
-      } catch {}
-    })();
-  }, [router]);
+  // Show payment UI regardless of prior status; access is controlled by middleware
 
   async function createOrder() {
     const res = await fetch("/api/payment/order", {
@@ -75,7 +65,7 @@ export default function PayPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ orderId, paymentId, signature }),
+      body: JSON.stringify({ orderId, paymentId, signature, amount, currency, description, name, email, phone }),
     });
     if (!res.ok) throw new Error((await res.json())?.error || "Verification failed");
     return res.json();
@@ -110,11 +100,8 @@ export default function PayPage() {
               response.razorpay_payment_id,
               response.razorpay_signature
             );
-            try {
-              const secure = location.protocol === "https:" ? "; Secure" : "";
-              document.cookie = `nk_has_paid=true; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${secure}`;
-              document.cookie = `nk_has_paid_public=true; Max-Age=${60 * 60 * 24 * 7}; Path=/; SameSite=Lax${secure}`;
-            } catch {}
+            // server sets httpOnly cookie after verification
+// server sets httpOnly cookie after verification
             alert("Payment successful! Redirecting to the report tool.");
             window.location.replace("/report");
           } catch (err: any) {
@@ -244,3 +231,4 @@ export default function PayPage() {
     </div>
   );
 }
+

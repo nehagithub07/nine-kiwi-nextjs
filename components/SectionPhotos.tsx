@@ -85,7 +85,7 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
       <div className="flex gap-2 mb-6">
         <button
           onClick={() => fileRef.current?.click()}
-          className="flex-1 bg-kiwi-green text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-600 transition-all hover:scale-105 flex items-center justify-center gap-2"
+          className="flex-1 bg-kiwi-green text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#78c850] transition-all hover:scale-105 flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -94,7 +94,7 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
         </button>
         <button
           onClick={captureFromCamera}
-          className="flex-1 bg-blue-500 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-600 transition-all hover:scale-105 flex items-center justify-center gap-2"
+          className="flex-1 bg-[#78c850] text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#78c850] transition-all hover:scale-105 flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path
@@ -169,7 +169,7 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
               </div>
 
               {summaryToggle ? (
-                <label className="flex items-center gap-2 cursor-pointer bg-green-50 p-2 rounded-lg hover:bg-green-100 transition-colors">
+                <label className="flex items-center gap-2 cursor-pointer bg-[#78c850]/5 p-2 rounded-lg hover:bg-[#78c850]/10 transition-colors">
                   <input
                     type="checkbox"
                     checked={p.includeInSummary ?? false}
@@ -193,3 +193,5 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
     </div>
   );
 }
+
+

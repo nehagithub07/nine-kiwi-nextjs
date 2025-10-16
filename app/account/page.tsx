@@ -118,7 +118,7 @@ export default function AccountPage() {
               <button type="submit" disabled={loading} className="bg-kiwi-green text-white px-4 py-2 rounded">
                 {loading ? "Saving..." : "Save changes"}
               </button>
-              {saved && <span className="text-sm text-green-700">Saved</span>}
+              {saved && <span className="text-sm text-[#78c850]">Saved</span>}
             </div>
           </div>
         </form>
@@ -128,3 +128,4 @@ export default function AccountPage() {
     </div>
   );
 }
+

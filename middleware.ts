@@ -16,25 +16,38 @@ export async function middleware(req: NextRequest) {
   // Always allow API auth endpoints
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
-  // Payment page: allow unauth access for reliability on Vercel, but fast-path to /report if already paid
+  // Payment page: require login; redirect admins directly to report
   if (pathname === "/pay") {
-    const paid = req.cookies.get("nk_has_paid")?.value === "true" || req.cookies.get("nk_has_paid_public")?.value === "true";
-    if (paid) return NextResponse.redirect(new URL("/report", req.url));
+    let token: any = null;
+    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    if (!token) {
+      const url = new URL("/login", req.url);
+      url.searchParams.set("callbackUrl", "/pay");
+      return NextResponse.redirect(url);
+    }
+    const role = (token as any)?.role || "user";
+    if (role === "admin") {
+      return NextResponse.redirect(new URL("/report", req.url));
+    }
     return NextResponse.next();
   }
 
   // Public pages bypass auth
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  // Access to report tool requires either login or a valid paid cookie.
+  // Access to report tool requires BOTH login and a valid paid cookie (admins bypass payment).
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
-    const paid = req.cookies.get("nk_has_paid")?.value === "true" || req.cookies.get("nk_has_paid_public")?.value === "true";
+    const paid = req.cookies.get("nk_has_paid")?.value === "true"; // Only trust httpOnly server cookie
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
-    if (!token && !paid) {
+    if (!token) {
       const url = new URL("/login", req.url);
-      url.searchParams.set("callbackUrl", req.nextUrl.pathname);
+      url.searchParams.set("callbackUrl", "/pay");
       return NextResponse.redirect(url);
+    }
+    const role = (token as any)?.role || "user";
+    if (role !== "admin" && !paid) {
+      return NextResponse.redirect(new URL("/pay", req.url));
     }
   }
 

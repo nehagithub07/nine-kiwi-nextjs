@@ -128,6 +128,55 @@ const THEME_CSS = `
  
 const S = (v: unknown) => (v == null ? "" : String(v).trim());
 
+// Resolve coordinates from form: prefer explicit lat/lon; otherwise geocode from address
+async function resolveCoords(form: FormData): Promise<{ lat: number; lon: number } | null> {
+  const latNum = Number((form as any)?.lat);
+  const lonNum = Number((form as any)?.lon);
+  if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+    return { lat: latNum, lon: lonNum };
+  }
+
+  const addr = [form.streetAddress,
+    [form.city, form.state].filter(Boolean).join(", "),
+    [form.country, form.zipCode].filter(Boolean).join(" "),
+  ].filter(Boolean).map(S).filter(Boolean).join(", ") || S(form.location);
+
+  if (!addr) return null;
+  try {
+    const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(addr)}&count=1`;
+    const r = await fetch(url, { headers: { 'Accept-Language': 'en' }, cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const first = j?.results?.[0];
+    const lat = Number(first?.latitude);
+    const lon = Number(first?.longitude);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) return { lat, lon };
+  } catch {}
+  return null;
+}
+
+// Build static map photo (Google Static Maps if key present, else OSM staticmap)
+async function buildSiteMapFromForm(form: FormData): Promise<PhotoData | undefined> {
+  try {
+    const coords = await resolveCoords(form);
+    if (!coords) return undefined;
+    const gkey = (process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY || '').trim();
+    const url = gkey
+      ? `https://maps.googleapis.com/maps/api/staticmap?center=${coords.lat},${coords.lon}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:green|${coords.lat},${coords.lon}&key=${gkey}`
+      : `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lon}&zoom=15&size=1200x600&markers=${coords.lat},${coords.lon},lightgreen-pushpin`;
+
+    let data = '';
+    try { data = await fetchToDataURL(url); } catch {}
+    const photo: PhotoData = {
+      name: 'Site Map',
+      data: data || url,
+      caption: 'Site location map',
+      description: '',
+    };
+    return photo;
+  } catch { return undefined; }
+}
+
 // format "HH:mm" -> "12:00 PM"
 function formatTime12(t?: string): string {
   if (!t) return "";
@@ -695,12 +744,14 @@ export async function generateFullReportPDF(
     .join("");
 
   const formPlus = signatureData ? { ...form, signatureData } : form;
+  // Auto-build site map if not provided from caller
+  const siteMapFinal = siteMap || await buildSiteMapFromForm(formPlus);
 
   const html =
     coverPage(formPlus) +
     disclaimerPage(formPlus) +
     tocPage(formPlus, toc) +
-    buildBodyHTML(formPlus, backgroundHTML, buckets, formPlus.fieldObservationText, siteMap);
+    buildBodyHTML(formPlus, backgroundHTML, buckets, formPlus.fieldObservationText, siteMapFinal);
 
   const cleanup = mount(html);
   try {
@@ -868,9 +919,13 @@ export async function generateFullReportDOCX(
   children.push(new Paragraph({ text: "NineKiwi - Site Inspection Report", heading: HeadingLevel.TITLE }));
   children.push(new Paragraph({ text: `${S(form.companyName)} | ${S(form.location)} | ${S(form.inspectionDate)}` }));
 
-  // Optional site map as first image section
-  if (siteMap) {
-    const img = await toImageRun(siteMap);
+  // Optional site map as first image section (auto-generate if not provided)
+  let siteMapDoc = siteMap;
+  if (!siteMapDoc) {
+    try { siteMapDoc = await buildSiteMapFromForm(form); } catch {}
+  }
+  if (siteMapDoc) {
+    const img = await toImageRun(siteMapDoc);
     if (img) {
       children.push(new Paragraph({ text: "Site Location Map", heading: HeadingLevel.HEADING_2 }));
       children.push(new Paragraph({ children: [img] }));

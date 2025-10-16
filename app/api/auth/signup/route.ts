@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import bcrypt from "bcryptjs";
+import { sendEmail } from "@/lib/email";
 
 export async function POST(req: Request) {
   try {
@@ -23,6 +24,15 @@ export async function POST(req: Request) {
     const hash = await bcrypt.hash(password, 10);
     const doc = await User.create({ name, email, password: hash, role: "user" });
 
+    // Fire-and-forget welcome email
+    (async () => {
+      try {
+        const subject = "Welcome to NineKiwi";
+        const text = `Hi ${name},\n\nYour NineKiwi account was created successfully. You can now sign in and use the tool.\n\nLogin: ${(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || "") + "/login"}`;
+        await sendEmail(email, subject, text);
+      } catch (e) { console.error("Signup welcome email failed", e); }
+    })();
+
     return NextResponse.json({
       user: { id: String(doc._id), name: doc.name, email: doc.email, role: doc.role },
     });
@@ -31,4 +41,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
+
 

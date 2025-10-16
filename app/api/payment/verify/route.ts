@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { dbConnect } from "@/lib/mongodb";
+import { Payment } from "@/models/Payment";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
-    const { orderId, paymentId, signature } = await req.json();
+    const body = await req.json();
+    const { orderId, paymentId, signature } = body || {};
     const key_secret = process.env.RAZORPAY_KEY_SECRET;
     if (!key_secret) {
       return NextResponse.json(
@@ -27,6 +30,24 @@ export async function POST(req: NextRequest) {
     if (!valid) {
       return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
     }
+
+    // Persist payment record
+    try {
+      await dbConnect();
+      await Payment.create({
+        orderId,
+        paymentId,
+        signature,
+        amount: Number((body as any)?.amount) || 0,
+        currency: String((body as any)?.currency || "INR"),
+        description: String((body as any)?.description || ""),
+        name: String((body as any)?.name || ""),
+        email: String((body as any)?.email || ""),
+        phone: String((body as any)?.phone || ""),
+        status: "success",
+        meta: { source: "razorpay" },
+      });
+    } catch {}
 
     const res = NextResponse.json({ success: true });
     const isHttps = req.nextUrl.protocol === "https:";
