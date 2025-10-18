@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { generateFullReportPDF } from "@/lib/export";
+import { generateFullReportPDF, warmupExportLibs } from "@/lib/export";
 
 type ReportItem = {
   _id: string;
@@ -175,6 +175,8 @@ export default function AdminReportsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <div className="flex items-center gap-2">
                           <button
+                            onMouseEnter={() => warmupExportLibs()}
+                            onFocus={() => warmupExportLibs()}
                             className="inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             disabled={downloading === r.reportId}
                             onClick={async () => {
@@ -288,6 +290,8 @@ export default function AdminReportsPage() {
 
                   <div className="flex flex-col sm:flex-row gap-2">
                     <button
+                      onMouseEnter={() => warmupExportLibs()}
+                      onFocus={() => warmupExportLibs()}
                       className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       disabled={downloading === r.reportId}
                       onClick={async () => {

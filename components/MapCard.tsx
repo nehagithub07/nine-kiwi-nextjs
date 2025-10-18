@@ -20,17 +20,26 @@ export default function MapCard({ address, onCoords, className }: Props) {
       const q = address?.trim();
       if (!q) { setCoords(null); return; }
       try {
-        const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1`;
-        const resp = await fetch(url, { headers: { "Accept-Language": "en" } });
-        const json = await resp.json();
-        const first = json?.results?.[0];
-        if (!cancelRef.current && first) {
-          const lat = Number(first.latitude), lon = Number(first.longitude);
-          if (Number.isFinite(lat) && Number.isFinite(lon)) {
-            setCoords({ lat, lon }); onCoords?.(lat, lon);
-          } else setCoords(null);
+        const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { cache: 'no-store' });
+        if (!r.ok) throw new Error(String(r.status));
+        const j = await r.json();
+        if (j?.success === false) {
+          if (!cancelRef.current) setCoords(null);
+          return;
         }
-      } catch { if (!cancelRef.current) setCoords(null); }
+        const lat = Number(j?.lat);
+        const lon = Number(j?.lon);
+        if (!cancelRef.current) {
+          if (Number.isFinite(lat) && Number.isFinite(lon)) {
+            const c = { lat, lon } as Coords;
+            setCoords(c); onCoords?.(c.lat, c.lon);
+          } else {
+            setCoords(null);
+          }
+        }
+      } catch {
+        if (!cancelRef.current) setCoords(null);
+      }
     };
     run();
     return () => { cancelRef.current = true; };

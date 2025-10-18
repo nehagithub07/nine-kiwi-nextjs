@@ -5,9 +5,11 @@ import GoogleProvider from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
+import { Payment } from "@/models/Payment";
 import { sendEmail } from "@/lib/email";
 import { headers } from "next/headers";
 import path from "path";
+import crypto from "crypto";
 
 /* ----------------- Minimal UA parsing ----------------- */
 function parseUserAgent(
@@ -112,11 +114,12 @@ function buildLoginEmailHTML(opts: {
   locationText: string;
   baseUrl: string;
   supportEmail?: string;
+  resetToken?: string | null;
 }) {
   const subject = "🥝 Recent Login Notification";
 
   const supportEmail = opts.supportEmail || "contact@ninekiwi.com";
-  const secureUrl = `${opts.baseUrl.replace(/\/$/, "")}/forgot`;
+  const resetUrl = `${opts.baseUrl.replace(/\/$/, "")}/reset-password`;
   const adminSignature = process.env.ADMIN_SIGNATURE || "The NineKiwi Team";
 
   // Prefer explicit PUBLIC_LOGO_URL; else derive from PUBLIC_BASE_URL/VERCEL_URL; else use CID.
@@ -145,7 +148,10 @@ Browser: ${opts.browser}
 
 If this was you, no further action is needed.
 
-If you did not recognize this login, please secure your account immediately by changing your password and reviewing your recent activity: ${secureUrl}
+If you did not recognize this login, please secure your account immediately by changing your password.
+
+To reset your password, go to: ${resetUrl}
+${opts.resetToken ? `Your reset token: ${opts.resetToken}\nPaste this token on the reset page to proceed.` : ""}
 
 Thank you,
 ${adminSignature}
@@ -173,10 +179,16 @@ You are receiving this email because a login to your account was detected. If yo
             <tr><td style="width:160px;color:#444;">Browser</td><td>${opts.browser}</td></tr>
           </table>
           <p style="margin:0 0 16px 0;">If this was you, no further action is needed.</p>
-          <p style="margin:0 0 6px 0;">If you did not recognize this login, please secure your account immediately:</p>
+          <p style="margin:0 0 6px 0;">If you did not recognize this login, please secure your account immediately by resetting your password:</p>
           <div style="margin:12px 0 18px 0;">
-            <a href="${secureUrl}" style="display:inline-block;background:#78c850;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:700">Secure Your Account</a>
+            <a href="${resetUrl}" style="display:inline-block;background:#78c850;color:#fff;text-decoration:none;padding:10px 16px;border-radius:10px;font-weight:700">Reset Password</a>
           </div>
+          ${opts.resetToken ? `<div style="background:#f3f4f6;border:1px dashed #d1d5db;padding:12px;border-radius:8px;">
+            <div style="font-size:12px;color:#374151;margin-bottom:6px;">Your reset token (valid for a limited time):</div>
+            <code style="font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,\"Liberation Mono\",\"Courier New\",monospace;font-size:13px;color:#111;">${opts.resetToken}</code>
+            <div style="font-size:12px;color:#6b7280;margin-top:6px;">Open the reset page and paste this token to change your password.</div>
+          </div>` : ""}
+          
           <p style="margin:12px 0 0 0;">Thank you,<br/>${adminSignature}</p>
         </td>
       </tr>
@@ -214,18 +226,21 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         // Admin override via env (avoid hardcoding in code)
-        const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-        const adminPass = process.env.ADMIN_PASSWORD || "";
-        if (
-          adminEmail &&
-          adminPass &&
-          String(credentials.email).trim().toLowerCase() === adminEmail &&
-          String(credentials.password) === adminPass
-        ) {
+        const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+        const adminEmails = new Set(
+          adminRaw
+            .split(/[,;]+/)
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        );
+        const adminPass = (process.env.ADMIN_PASSWORD || "").trim();
+        const emailInAdminList = adminEmails.has(String(credentials.email).trim().toLowerCase());
+        const passwordMatches = String(credentials.password) === adminPass;
+        if (emailInAdminList && passwordMatches) {
           return {
             id: "admin-fixed",
             name: "Admin",
-            email: adminEmail,
+            email: String(credentials.email).trim().toLowerCase(),
             role: "admin",
           } as any;
         }
@@ -261,17 +276,38 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+      const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+      const adminEmails = new Set(
+        adminRaw
+          .split(/[,;]+/)
+          .map((s) => s.trim().toLowerCase())
+          .filter(Boolean)
+      );
       // On initial sign-in, prefer role from the authenticated user object
       if (user) {
         const incomingRole = (user as any).role || (token as any).role;
-        (token as any).role = incomingRole || (token?.email && token.email.toLowerCase() === adminEmail ? "admin" : "user");
+        (token as any).role =
+          incomingRole || (token?.email && adminEmails.has(token.email.toLowerCase()) ? "admin" : "user");
       } else {
         // No new user info: ensure admin email always maps to admin role
-        if (token?.email && token.email.toLowerCase() === adminEmail) {
+        if (token?.email && adminEmails.has(token.email.toLowerCase())) {
           (token as any).role = "admin";
         }
         (token as any).role = (token as any).role || "user";
+      }
+      // Attach persistent payment entitlement based on email
+      try {
+        if (token?.email) {
+          await dbConnect();
+          const paidCount = await Payment.countDocuments({
+            email: String(token.email).toLowerCase(),
+            status: "success",
+          });
+          (token as any).hasPaid = paidCount > 0;
+        }
+      } catch {
+        // keep prior value if DB lookup fails
+        (token as any).hasPaid = (token as any).hasPaid || false;
       }
       return token;
     },
@@ -285,9 +321,32 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       // Best-effort login email (non-blocking)
       try {
+        let resetToken: string | null = null;
+        // Generate a fresh reset token and store it for this user
+        try {
+          if (user?.email && process.env.MONGODB_URI) {
+            await dbConnect();
+            const u = await User.findOne({ email: String(user.email).toLowerCase() });
+            if (u) {
+              resetToken = crypto.randomBytes(24).toString("hex");
+              const exp = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
+              (u as any).resetToken = resetToken;
+              (u as any).resetTokenExp = exp as any;
+              await u.save();
+            }
+          }
+        } catch (tokenErr) {
+          console.warn("reset token generation skipped", tokenErr);
+        }
         // Elevate admin by email for OAuth logins too
-        const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-        if (user?.email && user.email.toLowerCase() === adminEmail) {
+        const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+        const adminEmails = new Set(
+          adminRaw
+            .split(/[,;]+/)
+            .map((s) => s.trim().toLowerCase())
+            .filter(Boolean)
+        );
+        if (user?.email && adminEmails.has(user.email.toLowerCase())) {
           (user as any).role = "admin";
         }
 
@@ -327,6 +386,7 @@ export const authOptions: NextAuthOptions = {
           locationText,
           baseUrl,
           supportEmail: process.env.SUPPORT_EMAIL || "contact@ninekiwi.com",
+          resetToken,
         });
 
         const attachments =

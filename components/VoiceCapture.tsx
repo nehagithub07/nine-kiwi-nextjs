@@ -14,6 +14,24 @@ export default function VoiceCapture() {
   const [error, setError] = useState<string | null>(null);
   const recogRef = useRef<any>(null);
   const appendModeRef = useRef(true); // true=append, false=replace
+  const wantRef = useRef(false); // whether user intends to keep mic on
+  const lastEditableRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+
+  // Track the last focused editable input/textarea so we don't lose the target
+  useEffect(() => {
+    function onFocusIn(e: Event) {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      const tag = t.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") {
+        const el = t as HTMLInputElement | HTMLTextAreaElement;
+        if (el.readOnly || (el as any).disabled) return;
+        lastEditableRef.current = el;
+      }
+    }
+    document.addEventListener("focusin", onFocusIn, true);
+    return () => document.removeEventListener("focusin", onFocusIn, true);
+  }, []);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -35,25 +53,83 @@ export default function VoiceCapture() {
         }
         finalText = finalText.trim();
         if (!finalText) return;
-        const active = document.activeElement as HTMLInputElement | HTMLTextAreaElement | null;
-        if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
-          const prev = appendModeRef.current ? (active as any).value + (active.value ? " " : "") : "";
-          (active as any).value = (prev + finalText).trim();
-          active.dispatchEvent(new Event("input", { bubbles: true }));
-          active.focus();
+        // Prefer last focused editable; fall back to current active if valid
+        let target = lastEditableRef.current;
+        const active = document.activeElement as any;
+        if (!target && active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) {
+          target = active as HTMLInputElement | HTMLTextAreaElement;
         }
+        if (!target) {
+          setError("Focus a text field to insert voice input");
+          return;
+        }
+        if (target.readOnly || (target as any).disabled) {
+          setError("Focused field is read-only");
+          return;
+        }
+
+        // Compute new value
+        const base = appendModeRef.current ? String((target as any).value || "") : "";
+        const newVal = (base + (base ? " " : "") + finalText).trim();
+
+        // Use native value setter so React controlled inputs receive updates reliably
+        const proto = target.tagName === "TEXTAREA"
+          ? Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")
+          : Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+        proto?.set?.call(target, newVal);
+        // Dispatch input event (React listens to 'input' for onChange). Also fire a fallback 'change'.
+        target.dispatchEvent(new Event("input", { bubbles: true }));
+        target.dispatchEvent(new Event("change", { bubbles: true }));
+        target.focus();
       } catch (e: any) {
         setError(e?.message || "Voice input failed");
       }
     };
 
+    const safeRestart = (delay = 400) => {
+      if (!wantRef.current) return;
+      try {
+        r.start();
+        setListening(true);
+      } catch {
+        // If starting too soon, try shortly after
+        setTimeout(() => {
+          if (!wantRef.current) return;
+          try { r.start(); setListening(true); } catch {}
+        }, delay);
+      }
+    };
+
     r.onerror = (e: any) => {
-      setError(e?.error || "Speech recognition error");
+      const code = String(e?.error || "");
+      // For permission or fatal errors, stop fully
+      if (code === "not-allowed" || code === "service-not-allowed") {
+        setError("Microphone access denied.");
+        wantRef.current = false;
+        setListening(false);
+        try { r.stop(); } catch {}
+        return;
+      }
+      // For transient cases, attempt seamless restart if user still wants it
+      if (wantRef.current && (code === "no-speech" || code === "audio-capture" || code === "aborted" || code === "network")) {
+        setError(null);
+        safeRestart(600);
+        return;
+      }
+      setError(code || "Speech recognition error");
       setListening(false);
     };
-    r.onend = () => setListening(false);
+    r.onend = () => {
+      if (wantRef.current) {
+        // Auto-resume to behave like a continuous dictation button
+        safeRestart(500);
+      } else {
+        setListening(false);
+      }
+    };
     recogRef.current = r;
     return () => {
+      wantRef.current = false;
       try { r.stop(); } catch {}
     };
   }, []);
@@ -63,10 +139,11 @@ export default function VoiceCapture() {
     setError(null);
     const r = recogRef.current;
     try {
-      if (!listening) { r.start(); setListening(true); }
-      else { r.stop(); }
+      if (!listening) { wantRef.current = true; r.start(); setListening(true); }
+      else { wantRef.current = false; r.stop(); setListening(false); }
     } catch (e: any) {
       setError(e?.message || "Could not start mic");
+      wantRef.current = false;
       setListening(false);
     }
   }
@@ -81,6 +158,7 @@ export default function VoiceCapture() {
           Append
         </label>
         <button
+          onMouseDown={(e) => e.preventDefault()}
           onClick={toggle}
           title="Voice to text: click then speak; click again to stop. Text goes into the focused field."
           className={`h-11 w-11 rounded-full grid place-items-center ${listening ? "bg-red-500" : "bg-kiwi-green"} text-white shadow hover:opacity-95`}
@@ -96,4 +174,3 @@ export default function VoiceCapture() {
     </div>
   );
 }
-

@@ -26,7 +26,8 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     const role = (token as any)?.role || "user";
-    if (role === "admin") {
+    const alreadyPaid = req.cookies.get("nk_has_paid")?.value === "true" || (token as any)?.hasPaid === true;
+    if (role === "admin" || alreadyPaid) {
       return NextResponse.redirect(new URL("/report", req.url));
     }
     return NextResponse.next();
@@ -38,14 +39,16 @@ export async function middleware(req: NextRequest) {
   // Access to report tool requires BOTH login and a valid paid cookie (admins bypass payment).
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
-    const paid = req.cookies.get("nk_has_paid")?.value === "true"; // Only trust httpOnly server cookie
+    const paidCookie = req.cookies.get("nk_has_paid")?.value === "true"; // httpOnly server cookie
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token) {
       const url = new URL("/login", req.url);
-      url.searchParams.set("callbackUrl", "/pay");
+      url.searchParams.set("callbackUrl", "/report");
       return NextResponse.redirect(url);
     }
     const role = (token as any)?.role || "user";
+    const tokenPaid = (token as any)?.hasPaid === true;
+    const paid = paidCookie || tokenPaid;
     if (role !== "admin" && !paid) {
       return NextResponse.redirect(new URL("/pay", req.url));
     }
@@ -62,7 +65,7 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/admin")) {
     let token: any = null;
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
-    if (!token) return NextResponse.redirect(new URL("/login", req.url));
+    if (!token) return NextResponse.redirect(new URL("/admin/login", req.url));
     const role = (token as any).role || "user";
     if (role !== "admin") return NextResponse.redirect(new URL("/", req.url));
   }

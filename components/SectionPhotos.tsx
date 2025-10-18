@@ -1,4 +1,4 @@
-// components/SectionPhotos.tsx
+﻿// components/SectionPhotos.tsx
 
 "use client";
 
@@ -42,7 +42,6 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
     },
     [safePhotos, renumber, setPhotos, section]
   );
-
   const removeAt = (idx: number) => {
     const next = renumber(safePhotos.filter((_, i) => i !== idx));
     setPhotos(next);
@@ -144,16 +143,12 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
                   aria-label={`Remove photo ${idx + 1}`}
                   className="text-red-500 hover:text-red-700 font-semibold text-sm bg-red-50 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
                 >
-                  🗑️ Remove
+                  Remove
                 </button>
               </div>
 
-              {/* Caption removed as requested */}
-
               <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  📄 Description
-                </label>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Description</label>
                 <textarea
                   placeholder="Enter detailed description..."
                   value={p.description ?? ""}
@@ -168,24 +163,8 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
                 />
               </div>
 
-              {summaryToggle ? (
-                <label className="flex items-center gap-2 cursor-pointer bg-[#78c850]/5 p-2 rounded-lg hover:bg-[#78c850]/10 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={p.includeInSummary ?? false}
-                    className="w-4 h-4 text-kiwi-green focus:ring-kiwi-green rounded"
-                    onChange={(e) => {
-                      const next = [...safePhotos];
-                      next[idx] = { ...next[idx], includeInSummary: e.currentTarget.checked };
-                      setPhotos(renumber(next));
-                      setCount(next.length);
-                    }}
-                  />
-                  <span className="text-sm font-semibold text-gray-700">✅ Include in summary</span>
-                </label>
-              ) : (
-                <div className="h-1"></div>
-              )}
+              {/* Removed "Include in summary" toggle per request */}
+              <div className="h-1"></div>
             </div>
           </div>
         ))}
@@ -193,5 +172,10 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
     </div>
   );
 }
+
+
+
+
+
 
 

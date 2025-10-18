@@ -29,10 +29,30 @@ export async function createPhoto(input: {
   description?: string;
   figureNumber?: number;
 }): Promise<PhotoItem> {
+  // If data is a remote URL, try to convert it to a data URL first
+  let payload = { ...input } as typeof input;
+  try {
+    const d = String(input.data || "").trim();
+    if (d && /^https?:\/\//i.test(d)) {
+      const proxied = `/api/image-proxy?url=${encodeURIComponent(d)}`;
+      const resp = await fetch(proxied, { cache: "no-store" });
+      if (resp.ok) {
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        const dataUrl: string = await new Promise((resolve, reject) => {
+          reader.onloadend = () => resolve(String(reader.result || ""));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        if (dataUrl.startsWith("data:")) payload = { ...payload, data: dataUrl };
+      }
+    }
+  } catch {}
+
   const res = await fetch("/api/photos", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(input),
+    body: JSON.stringify(payload),
   });
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error || "Failed to create photo");
@@ -63,4 +83,3 @@ export async function deletePhoto(id: string): Promise<void> {
     throw new Error(j?.error || "Failed to delete photo");
   }
 }
-

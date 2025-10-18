@@ -1,35 +1,169 @@
 "use client";
+
 import React, { useMemo, useState } from "react";
 import { UPhoto } from "@/lib/types";
 
 type Props = { form: any; photos?: UPhoto[] };
 
-function nonEmpty(v: any) {
-  return typeof v === "string" ? v.trim().length > 0 : v != null;
+const FALLBACK = "Not provided";
+
+type Tone = "positive" | "caution" | "critical" | "neutral";
+
+const POSITIVE_RE = /(on track|compliant|available|complete|good|clear|safe|yes|ok|met|satisfactory|no issues|adequate)/i;
+const CAUTION_RE = /(monitor|pending|partial|limited|follow up|minor|in progress|ongoing|watch)/i;
+const CRITICAL_RE = /(delay|behind|blocked|risk|hazard|unsafe|critical|stop|halt|fail|shortage|defect|non-?compliant|incident|accident|escalate|breach)/i;
+
+function nonEmpty(value: unknown): boolean {
+  if (value == null) return false;
+  const str = String(value).trim();
+  return str.length > 0;
 }
+
+function classifyTone(value?: string): Tone {
+  const text = String(value ?? "").trim();
+  if (!text) return "neutral";
+  if (CRITICAL_RE.test(text)) return "critical";
+  if (CAUTION_RE.test(text)) return "caution";
+  if (POSITIVE_RE.test(text)) return "positive";
+  return "neutral";
+}
+
+const toneBadge: Record<Tone, string> = {
+  positive: "bg-green-50 text-green-700 border-green-200",
+  caution: "bg-amber-50 text-amber-700 border-amber-200",
+  critical: "bg-red-50 text-red-700 border-red-200",
+  neutral: "bg-gray-50 text-gray-700 border-gray-200",
+};
+
+const SummaryCard: React.FC<{
+  label: string;
+  value: string;
+  tone?: Tone;
+}> = ({ label, value, tone = "neutral" }) => {
+  const badgeClass = toneBadge[tone] ?? toneBadge.neutral;
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-shadow">
+      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+        {label}
+      </div>
+      <div className={`inline-flex rounded-md px-3 py-1.5 text-sm font-medium border ${badgeClass}`}>
+        {value || FALLBACK}
+      </div>
+    </div>
+  );
+};
 
 export default function AutoSummary({ form, photos }: Props) {
   const [downloading, setDownloading] = useState<null | "pdf" | "word">(null);
   const availablePhotos = useMemo(() => (Array.isArray(photos) ? photos : []), [photos]);
   const [selectedSet, setSelectedSet] = useState<Set<number>>(new Set());
-  // initialize selection based on includeInSummary when photos change
+
   React.useEffect(() => {
     const next = new Set<number>();
+    let anyFlagged = false;
     availablePhotos.forEach((p, idx) => {
-      if (p?.includeInSummary) next.add(idx);
+      if (p?.includeInSummary) {
+        next.add(idx);
+        anyFlagged = true;
+      }
     });
+    // If none explicitly flagged, auto-select all available photos
+    if (!anyFlagged) {
+      availablePhotos.forEach((_, idx) => next.add(idx));
+    }
     setSelectedSet(next);
   }, [availablePhotos]);
+
   const selectedPhotos = useMemo(
     () => availablePhotos.filter((_, idx) => selectedSet.has(idx)),
     [availablePhotos, selectedSet]
   );
 
-  const blocks = useMemo(() => {
+  const summarySentences = useMemo(() => {
+    if (!form) return [];
+    const sentences: string[] = [];
+    const purpose = form?.purposeOfFieldVisit || form?.status;
+    const location = form?.location;
+    const date = form?.inspectionDate;
+
+    if (purpose || location || date) {
+      const inspect = purpose ? `${purpose} inspection` : "Site inspection";
+      const place = location ? ` at ${location}` : "";
+      const when = date ? ` on ${date}` : "";
+      sentences.push(`${inspect}${place}${when}.`);
+    }
+    if (nonEmpty(form?.inspectorName) || nonEmpty(form?.companyName)) {
+      const inspector = form?.inspectorName ? String(form.inspectorName) : "The assigned inspector";
+      const company = form?.companyName ? ` for ${form.companyName}` : "";
+      sentences.push(`${inspector}${company} documented the site conditions and progress.`);
+    }
+    if (nonEmpty(form?.scheduleCompliance)) {
+      sentences.push(`Schedule status: ${form.scheduleCompliance}.`);
+    }
+    if (nonEmpty(form?.safetyCompliance)) {
+      sentences.push(`Safety compliance: ${form.safetyCompliance}.`);
+    }
+    if (nonEmpty(form?.materialAvailability)) {
+      sentences.push(`Material availability: ${form.materialAvailability}.`);
+    }
+    if (nonEmpty(form?.inspectorSummary)) {
+      sentences.push(`Inspector notes: ${form.inspectorSummary}.`);
+    }
+    return sentences;
+  }, [form]);
+
+  const actionHighlights = useMemo(() => {
+    const actions: string[] = [];
+    if (nonEmpty(form?.recommendations)) actions.push(`Recommended actions: ${form.recommendations}.`);
+    if (nonEmpty(form?.additionalComments)) actions.push(`Additional comments: ${form.additionalComments}.`);
+    if (nonEmpty(form?.workerAttendance)) actions.push(`Worker attendance: ${form.workerAttendance}.`);
+    return actions;
+  }, [form]);
+
+  const weatherMetrics = useMemo(() => {
+    const rows: { label: string; value: string }[] = [];
+    if (nonEmpty(form?.temperature)) rows.push({ label: "Temperature", value: `${form.temperature} deg C` });
+    if (nonEmpty(form?.humidity)) rows.push({ label: "Humidity", value: `${form.humidity}%` });
+    if (nonEmpty(form?.windSpeed)) rows.push({ label: "Wind", value: `${form.windSpeed} km/h` });
+    if (nonEmpty(form?.weatherDescription)) rows.push({ label: "Conditions", value: String(form.weatherDescription) });
+    return rows;
+  }, [form]);
+
+  const operationsMetrics = useMemo(() => {
+    const raw = [
+      { label: "Worker Attendance", value: form?.workerAttendance },
+      { label: "Schedule Compliance", value: form?.scheduleCompliance },
+      { label: "Material Availability", value: form?.materialAvailability },
+      { label: "Safety Protocols", value: form?.safetyCompliance },
+      { label: "Safety Signage", value: form?.safetySignage },
+      { label: "Equipment Condition", value: form?.equipmentCondition },
+    ];
+    return raw
+      .filter((item) => nonEmpty(item.value))
+      .map((item) => ({
+        label: item.label,
+        value: String(item.value),
+        tone: classifyTone(String(item.value)),
+      }));
+  }, [
+    form?.workerAttendance,
+    form?.scheduleCompliance,
+    form?.materialAvailability,
+    form?.safetyCompliance,
+    form?.safetySignage,
+    form?.equipmentCondition,
+  ]);
+
+  const attentionPoints = useMemo(
+    () => operationsMetrics.filter((metric) => metric.tone === "caution" || metric.tone === "critical"),
+    [operationsMetrics]
+  );
+
+  const infoBlocks = useMemo(() => {
     const out: { title: string; rows: { label: string; value: string }[] }[] = [];
     if (!form) return out;
 
-    const info: any[] = [];
+    const info: { label: string; value: string }[] = [];
     if (nonEmpty(form?.status)) info.push({ label: "Status", value: String(form.status) });
     if (nonEmpty(form?.reportId)) info.push({ label: "Report ID", value: String(form.reportId) });
     if (nonEmpty(form?.inspectorName)) info.push({ label: "Inspector", value: String(form.inspectorName) });
@@ -38,39 +172,29 @@ export default function AutoSummary({ form, photos }: Props) {
     if (nonEmpty(form?.location)) info.push({ label: "Location", value: String(form.location) });
     if (info.length) out.push({ title: "Report Information", rows: info });
 
-    const weather: any[] = [];
-    if (nonEmpty(form?.temperature)) weather.push({ label: "Temperature", value: `${form.temperature}°C` });
-    if (nonEmpty(form?.humidity)) weather.push({ label: "Humidity", value: `${form.humidity}%` });
-    if (nonEmpty(form?.windSpeed)) weather.push({ label: "Wind", value: `${form.windSpeed} m/s` });
-    if (nonEmpty(form?.weatherDescription)) weather.push({ label: "Description", value: String(form.weatherDescription) });
-    if (weather.length) out.push({ title: "Weather Conditions", rows: weather });
+    if (weatherMetrics.length) out.push({ title: "Weather Snapshot", rows: weatherMetrics });
 
-    const safety: any[] = [];
-    if (nonEmpty(form?.safetyCompliance)) safety.push({ label: "Safety Compliance", value: String(form.safetyCompliance) });
-    if (nonEmpty(form?.safetySignage)) safety.push({ label: "Safety Signage", value: String(form.safetySignage) });
-    if (safety.length) out.push({ title: "Safety & Compliance", rows: safety });
+    if (attentionPoints.length) {
+      out.push({
+        title: "Attention Points",
+        rows: attentionPoints.map((metric) => ({
+          label: metric.label,
+          value: metric.value,
+        })),
+      });
+    }
 
-    const work: any[] = [];
-    if (nonEmpty(form?.numWorkers)) work.push({ label: "Workers On Site", value: String(form.numWorkers) });
-    if (nonEmpty(form?.workProgress)) work.push({ label: "Work Progress", value: String(form.workProgress) });
-    if (nonEmpty(form?.scheduleCompliance)) work.push({ label: "Schedule", value: String(form.scheduleCompliance) });
-    if (work.length) out.push({ title: "Work Progress", rows: work });
-
-    const equip: any[] = [];
-    if (nonEmpty(form?.equipmentCondition)) equip.push({ label: "Equipment Condition", value: String(form.equipmentCondition) });
-    if (nonEmpty(form?.workmanshipQuality)) equip.push({ label: "Workmanship Quality", value: String(form.workmanshipQuality) });
-    if (equip.length) out.push({ title: "Equipment & Quality", rows: equip });
-
-    const notes: any[] = [];
-    if (nonEmpty(form?.inspectorSummary)) notes.push({ label: "Summary", value: String(form.inspectorSummary) });
-    if (nonEmpty(form?.recommendations)) notes.push({ label: "Recommendations", value: String(form.recommendations) });
-    if (nonEmpty(form?.additionalComments)) notes.push({ label: "Additional Comments", value: String(form.additionalComments) });
-    if (notes.length) out.push({ title: "Inspector Notes", rows: notes });
-
+    if (nonEmpty(form?.inspectorSummary) || nonEmpty(form?.recommendations) || nonEmpty(form?.additionalComments)) {
+      const notes: { label: string; value: string }[] = [];
+      if (nonEmpty(form?.inspectorSummary)) notes.push({ label: "Inspector Summary", value: String(form.inspectorSummary) });
+      if (nonEmpty(form?.recommendations)) notes.push({ label: "Recommendations", value: String(form.recommendations) });
+      if (nonEmpty(form?.additionalComments)) notes.push({ label: "Additional Comments", value: String(form.additionalComments) });
+      out.push({ title: "Inspector Notes", rows: notes });
+    }
     return out;
-  }, [form]);
+  }, [form, weatherMetrics, attentionPoints]);
 
-  const hasContent = blocks.length > 0 || selectedPhotos.length > 0;
+  const hasContent = infoBlocks.length > 0 || selectedPhotos.length > 0 || summarySentences.length > 0;
 
   async function download(type: "pdf" | "word") {
     setDownloading(type);
@@ -88,101 +212,195 @@ export default function AutoSummary({ form, photos }: Props) {
   }
 
   return (
-    <div className="form-section bg-white rounded-xl p-6 shadow fade-in">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-bold text-kiwi-dark flex items-center gap-2">
-          <svg className="w-5 h-5 text-kiwi-green" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6"/></svg>
-          Auto Summary
-        </h2>
-        <div className="flex gap-2">
-          <button
-            onClick={() => download("pdf")}
-            disabled={!hasContent || !!downloading}
-            className="inline-flex items-center gap-2 bg-kiwi-green hover:bg-kiwi-dark text-white px-4 py-2 rounded-lg font-semibold shadow transition disabled:opacity-50"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6"/></svg>
-            {downloading === "pdf" ? "Preparing..." : "PDF"}
-          </button>
-          <button
-            onClick={() => download("word")}
-            disabled={!hasContent || !!downloading}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-semibold shadow transition disabled:opacity-50"
-          >
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v16H4z"/></svg>
-            {downloading === "word" ? "Preparing..." : "Word"}
-          </button>
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+      {/* Header Section */}
+      <div className="border-b-2 border-kiwi-dark bg-gradient-to-r from-kiwi-dark/5 to-transparent px-6 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-kiwi-dark tracking-tight">
+            Auto Summary
+          </h2>
+          <div className="flex gap-2">
+            <button
+              onClick={() => download("pdf")}
+              disabled={!hasContent || !!downloading}
+              className="inline-flex items-center gap-2 rounded-md bg-kiwi-dark px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-kiwi-dark/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+              </svg>
+              {downloading === "pdf" ? "Preparing..." : "Export PDF"}
+            </button>
+            <button
+              onClick={() => download("word")}
+              disabled={!hasContent || !!downloading}
+              className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
+                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+              </svg>
+              {downloading === "word" ? "Preparing..." : "Export Word"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {blocks.length === 0 ? (
-        <p className="text-sm text-gray-500 italic">No summary data available. Fill out the form to see a preview.</p>
-      ) : (
-        <div className="space-y-4">
-          {blocks.map((b) => (
-            <div key={b.title} className="rounded-lg border border-kiwi-border p-3">
-              <h3 className="text-kiwi-dark font-semibold mb-2">{b.title}</h3>
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                {b.rows.map((r, i) => (
-                  <div key={r.label + i} className="flex items-start gap-2">
-                    <dt className="text-gray-500 min-w-[140px]">{r.label}:</dt>
-                    <dd className="text-gray-800">{r.value}</dd>
-                  </div>
+      {/* Content Section */}
+      <div className="p-6 space-y-6">
+        {/* Summary Text */}
+        {summarySentences.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500 italic">
+              No summary data available yet. Fill out the inspection form to generate an overview.
+            </p>
+          </div>
+        ) : (
+          <div className="prose max-w-none">
+            <div className="bg-kiwi-dark/5 rounded-lg p-4 border-l-4 border-kiwi-dark">
+              <div className="space-y-2 text-sm leading-relaxed text-gray-700">
+                {summarySentences.map((sentence, idx) => (
+                  <p key={`${sentence}-${idx}`}>{sentence}</p>
                 ))}
-              </dl>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {availablePhotos.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-kiwi-border">
-          <h3 className="text-base font-semibold text-kiwi-dark mb-2">
-            {selectedPhotos.length} of {availablePhotos.length} photo{availablePhotos.length > 1 ? "s" : ""} selected for summary
-          </h3>
-          <div className="flex items-center gap-2 mb-2 text-xs">
-            <button
-              type="button"
-              className="px-2 py-1 rounded border hover:bg-kiwi-light"
-              onClick={() => setSelectedSet(new Set(availablePhotos.map((_, i) => i)))}
-            >
-              Select all
-            </button>
-            <button
-              type="button"
-              className="px-2 py-1 rounded border hover:bg-kiwi-light"
-              onClick={() => setSelectedSet(new Set())}
-            >
-              Clear
-            </button>
+        {/* Operations Metrics */}
+        {operationsMetrics.length > 0 && (
+          <div>
+            <h3 className="text-sm font-semibold text-gray-700 mb-3 uppercase tracking-wide">
+              Operations Status
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {operationsMetrics.map((metric) => (
+                <SummaryCard key={metric.label} label={metric.label} value={metric.value} tone={metric.tone} />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            {availablePhotos.map((p, idx) => {
-              const checked = selectedSet.has(idx);
-              return (
-                <label key={p.name + idx} className="rounded-lg overflow-hidden border border-kiwi-border shadow-sm cursor-pointer select-none">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={p.data} alt={p.caption || p.name} className="w-full h-28 object-cover" />
-                  <div className="flex items-center justify-between p-2 bg-kiwi-light text-xs font-medium text-kiwi-dark gap-2">
-                    <span className="truncate">{p.caption || p.name}</span>
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4"
-                      checked={checked}
-                      onChange={(e) => {
-                        setSelectedSet((prev) => {
-                          const next = new Set(prev);
-                          if (e.target.checked) next.add(idx); else next.delete(idx);
-                          return next;
-                        });
-                      }}
-                    />
-                  </div>
-                </label>
-              );
-            })}
+        )}
+
+        {/* Action Highlights */}
+        {actionHighlights.length > 0 && (
+          <div className="bg-amber-50 rounded-lg p-4 border border-amber-200">
+            <h3 className="text-sm font-semibold text-amber-900 mb-3 uppercase tracking-wide">
+              Highlights & Actions
+            </h3>
+            <ul className="space-y-2 text-sm text-amber-900">
+              {actionHighlights.map((item, idx) => (
+                <li key={`${item}-${idx}`} className="flex gap-2">
+                  <span className="text-amber-600 font-bold">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Info Blocks */}
+        {infoBlocks.length > 0 && (
+          <div className="space-y-4">
+            {infoBlocks.map((block) => (
+              <div key={block.title} className="bg-gray-50 rounded-lg p-5 border border-gray-200">
+                <h3 className="text-sm font-semibold text-kiwi-dark mb-4 uppercase tracking-wide border-b border-kiwi-dark/20 pb-2">
+                  {block.title}
+                </h3>
+                <dl className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+                  {block.rows.map((row, idx) => (
+                    <div key={row.label + idx} className="flex flex-col gap-1">
+                      <dt className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        {row.label}
+                      </dt>
+                      <dd className="text-gray-800 font-medium">{row.value || FALLBACK}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Photo Selection */}
+        {availablePhotos.length > 0 && (
+          <div className="border-t-2 border-kiwi-dark/20 pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-kiwi-dark uppercase tracking-wide">
+                Photo Selection
+                <span className="ml-2 text-xs font-normal text-gray-600">
+                  ({selectedPhotos.length} of {availablePhotos.length} selected)
+                </span>
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
+                  onClick={() => setSelectedSet(new Set(availablePhotos.map((_, i) => i)))}
+                >
+                  Select All
+                </button>
+                <button
+                  type="button"
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition"
+                  onClick={() => setSelectedSet(new Set())}
+                >
+                  Clear All
+                </button>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+              {availablePhotos.map((p, idx) => {
+                const checked = selectedSet.has(idx);
+                return (
+                  <label
+                    key={p.name + idx}
+                    className={`cursor-pointer select-none overflow-hidden rounded-lg border-2 transition-all ${
+                      checked 
+                        ? 'border-kiwi-dark shadow-md' 
+                        : 'border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+                    }`}
+                  >
+                    <div className="relative bg-gray-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img 
+                        src={p.data} 
+                        alt={p.caption || p.name} 
+                        className="h-32 w-full object-cover" 
+                      />
+                      {checked && (
+                        <div className="absolute top-2 right-2 bg-kiwi-dark rounded-full p-1">
+                          <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 border-t border-gray-200">
+                      <span className="text-xs font-medium text-gray-700 truncate flex-1">
+                        {p.caption || p.name}
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-gray-300 text-kiwi-dark focus:ring-kiwi-dark"
+                        checked={checked}
+                        onChange={(e) => {
+                          setSelectedSet((prev) => {
+                            const next = new Set(prev);
+                            if (e.target.checked) next.add(idx);
+                            else next.delete(idx);
+                            return next;
+                          });
+                        }}
+                      />
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

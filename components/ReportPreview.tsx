@@ -16,7 +16,6 @@ interface UPhoto {
 type PhotoBuckets = Record<string, UPhoto[]>;
 
 interface FormData {
-  // Status & meta
   status?: "In Progress" | "Completed" | "On Track" | "";
   reportId?: string;
   inspectorName?: string;
@@ -27,9 +26,7 @@ interface FormData {
   contactEmail?: string;
   inspectionDate?: string;
   startInspectionTime?: string;
-
-  // Location
-  location?: string; // free-form site address (fallback)
+  location?: string;
   streetAddress?: string;
   city?: string;
   state?: string;
@@ -37,36 +34,24 @@ interface FormData {
   zipCode?: string;
   lat?: string | number;
   lon?: string | number;
-
-  // Weather
   temperature?: string | number;
   humidity?: string | number;
   windSpeed?: string | number;
   weatherDescription?: string;
-
-  // Radios / text
   weatherConditions?: string;
   safetyCompliance?: string;
   safetySignage?: string;
   scheduleCompliance?: string;
   materialAvailability?: string;
   workerAttendance?: string;
-
-  // Other fields
   numWorkers?: string | number;
   equipmentCondition?: string;
-
-  // Notes
   additionalComments?: string;
   inspectorSummary?: string;
   recommendations?: string;
-
-  // NEW narrative blocks
   backgroundManual?: string;
   backgroundAuto?: string;
   fieldObservationText?: string;
-
-  // Signature
   signatureDateTime?: string;
 }
 
@@ -96,59 +81,102 @@ function formatTime(time?: string): string {
   }
 }
 
-/* ===== Small primitives ===== */
+/* ===== Status Badge ===== */
+const StatusBadge: React.FC<{ status?: string }> = ({ status }) => {
+  if (!status) return null;
+  
+  const getStatusColor = (s: string) => {
+    switch (s) {
+      case "Completed":
+        return "bg-green-50 text-green-700 border-green-300";
+      case "In Progress":
+        return "bg-yellow-50 text-yellow-700 border-yellow-300";
+      case "On Track":
+        return "bg-kiwi-dark/10 text-kiwi-dark border-kiwi-dark/30";
+      default:
+        return "bg-gray-50 text-gray-700 border-gray-200";
+    }
+  };
+
+  return (
+    <span className={`inline-flex items-center px-4 py-1.5 rounded-md text-sm font-medium border ${getStatusColor(status)}`}>
+      {status}
+    </span>
+  );
+};
+
+/* ===== Line Component ===== */
 const Line = React.memo<{ label: string; value?: React.ReactNode }>(({ label, value }) => {
   if (value == null) return null;
   const text = typeof value === "string" ? S(value) : value;
   if (text === "" || text == null) return null;
 
   return (
-    <div className="flex gap-2 text-[13px] leading-5">
-      <div className="font-semibold text-gray-800">{label}:</div>
-      <div className="text-gray-700">{text}</div>
+    <div className="flex flex-col sm:flex-row gap-2 py-2.5 px-1 border-b border-gray-100 last:border-0 hover:bg-kiwi-dark/5 transition-colors rounded">
+      <dt className="font-semibold text-gray-700 sm:w-1/3">{label}</dt>
+      <dd className="text-gray-600 sm:w-2/3">{text}</dd>
     </div>
   );
 });
 Line.displayName = "Line";
 
-const Section: React.FC<{ title: string; children?: React.ReactNode; className?: string }> = ({
-  title,
-  children,
-  className = "",
-}) => {
+/* ===== Grid Line Component for Multi-column Layout ===== */
+const GridLine = React.memo<{ label: string; value?: React.ReactNode }>(({ label, value }) => {
+  if (value == null) return null;
+  const text = typeof value === "string" ? S(value) : value;
+  if (text === "" || text == null) return null;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <dt className="text-xs font-semibold text-kiwi-dark uppercase tracking-wide">{label}</dt>
+      <dd className="text-sm text-gray-800 font-medium">{text}</dd>
+    </div>
+  );
+});
+GridLine.displayName = "GridLine";
+
+/* ===== Section Component ===== */
+const Section: React.FC<{ 
+  title: string; 
+  children?: React.ReactNode; 
+  className?: string;
+}> = ({ title, children, className = "" }) => {
   if (!children) return null;
   if (Array.isArray(children) && children.every((c) => c == null || c === false)) return null;
 
   return (
     <section
       className={[
-        "rounded-xl border border-gray-200 bg-white p-5 shadow-sm",
+        "bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden",
         "print:shadow-none print:border print:break-inside-avoid",
         className,
       ].join(" ")}
     >
-      <h2 className="mb-3 text-[17px] font-bold tracking-tight text-kiwi-dark text-center">
-        {title}
-      </h2>
-      <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-200 to-transparent mb-4" />
-      {children}
+      <div className="border-b-2 border-kiwi-dark bg-gradient-to-r from-kiwi-dark/5 to-transparent px-6 py-4">
+        <h2 className="text-lg font-semibold text-kiwi-dark tracking-tight">
+          {title}
+        </h2>
+      </div>
+      <div className="p-6">
+        {children}
+      </div>
     </section>
   );
 };
 
-/* Photo tile with stable aspect & nicer captions */
+/* ===== Photo Grid ===== */
 const PhotoGrid = React.memo<{ photos: UPhoto[] }>(({ photos }) => {
   if (!photos?.length) return null;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {photos.map((photo, idx) => (
         <figure
           key={`${photo.name}-${idx}`}
-          className="rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm print:shadow-none"
+          className="border border-gray-200 rounded-lg overflow-hidden bg-white"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <div className="bg-white w-full aspect-[4/3] grid place-items-center p-2">
+          <div className="bg-gray-50 w-full aspect-[4/3] flex items-center justify-center p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={photo.data}
               alt={photo.name || `photo_${idx + 1}`}
@@ -158,13 +186,15 @@ const PhotoGrid = React.memo<{ photos: UPhoto[] }>(({ photos }) => {
               loading="eager"
             />
           </div>
-          <figcaption className="px-3 pt-2 pb-3 text-center">
-            <div className="text-xs font-semibold text-gray-800">
-              Figure {photo.figureNumber ?? idx + 1}
+          <figcaption className="px-4 py-3 border-t border-gray-200">
+            <div className="text-sm font-semibold text-gray-900 mb-1">
+              Photo {photo.figureNumber ?? idx + 1}
               {photo.caption ? `: ${photo.caption}` : ""}
             </div>
             {has(photo.description) && (
-              <div className="mt-1 text-[12px] text-gray-600 leading-5">{photo.description}</div>
+              <p className="text-xs text-gray-600 leading-relaxed mt-2">
+                {photo.description}
+              </p>
             )}
           </figcaption>
         </figure>
@@ -174,9 +204,8 @@ const PhotoGrid = React.memo<{ photos: UPhoto[] }>(({ photos }) => {
 });
 PhotoGrid.displayName = "PhotoGrid";
 
-/* ===== Main ===== */
+/* ===== Main Component ===== */
 export default function ReportPreview({ form, sectionPhotos, signatureData }: ReportPreviewProps) {
-  // Postal address, fallback to free-form location
   const postalAddress = useMemo(() => {
     const parts = [
       form?.streetAddress,
@@ -220,84 +249,98 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
   const mapAddress = useMemo(() => (postalAddress ? postalAddress : S(form?.location)), [postalAddress, form?.location]);
 
   const handleCoords = (lat: number, lon: number) => {
-    // For preview only; the PDF uses export.ts logic
     console.log(`Map coords in preview: ${lat}, ${lon}`);
   };
 
   return (
-    <div
-      id="reportPreview"
-      className="report-preview space-y-5 bg-transparent"
-    >
-      {/* ===== Status ===== */}
+    <div id="reportPreview" className="report-preview space-y-6 bg-transparent max-w-6xl mx-auto">
+      
+      {/* ===== Field Condition Summary ===== */}
       <Section title="Field Condition Summary">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-x-6 gap-y-2">
-          <Line label="Status" value={S(form?.status)} />
-          <Line label="Report ID" value={S(form?.reportId)} />
-          <Line label="Name of Filed Inspector" value={S(form?.inspectorName)} />
+        {form?.status && (
+          <div className="mb-6 flex justify-end">
+            <StatusBadge status={form.status} />
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 pb-6 border-b-2 border-kiwi-dark/20">
+          <GridLine label="Report ID" value={S(form?.reportId)} />
+          <GridLine label="Inspector Name" value={S(form?.inspectorName)} />
+          <GridLine label="Inspection Date" value={S(form?.inspectionDate)} />
+          <GridLine label="Start Time" value={observationTime} />
+        </div>
+
+        <dl className="space-y-0">
           <Line label="Name and Address of Inspection Company" value={S(form?.nameandAddressOfCompany)} />
-          <Line label="Client / Owner NAME" value={S(form?.clientName)} />
+          <Line label="Client / Owner Name" value={S(form?.clientName)} />
           <Line label="Company Name" value={S(form?.companyName)} />
           <Line label="Phone Number of Inspection Company" value={S(form?.contactPhone)} />
           <Line label="Email of Inspection Company" value={S(form?.contactEmail)} />
-          <Line label="Date of Inspection" value={S(form?.inspectionDate)} />
-          <Line label="Start Time of Inspection" value={observationTime} />
           <Line label="Inspection Property Address" value={S(form?.location)} />
-        </div>
+        </dl>
       </Section>
 
       {/* ===== Weather Conditions ===== */}
       {(anyLocationProvided || hasWeatherData || (buckets.weather?.length ?? 0) > 0) && (
         <Section title="Weather Conditions">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Line label="Full Inspection Property Address" value={postalAddress} />
-          </div>
+          {postalAddress && (
+            <div className="mb-6 p-4 bg-kiwi-dark/5 rounded-md border border-kiwi-dark/20">
+              <Line label="Full Inspection Property Address" value={postalAddress} />
+            </div>
+          )}
 
           {hasWeatherData && (
-            <div className="mt-2 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Line label="Temperature" value={has(form?.temperature) ? `${form?.temperature} °C` : undefined} />
-              <Line label="Humidity" value={has(form?.humidity) ? `${form?.humidity} %` : undefined} />
-              <Line label="Wind" value={has(form?.windSpeed) ? `${form?.windSpeed} m/s` : undefined} />
-              <Line label="Description" value={S(form?.weatherDescription)} />
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {has(form?.temperature) && (
+                <GridLine label="Temperature" value={`${form?.temperature} °C`} />
+              )}
+              {has(form?.humidity) && (
+                <GridLine label="Humidity" value={`${form?.humidity} %`} />
+              )}
+              {has(form?.windSpeed) && (
+                <GridLine label="Wind Speed" value={`${form?.windSpeed} m/s`} />
+              )}
+              {has(form?.weatherDescription) && (
+                <GridLine label="Description" value={S(form?.weatherDescription)} />
+              )}
             </div>
           )}
 
           {mapAddress && (
-            <div className="mt-3">
+            <div className="mb-6 rounded-md overflow-hidden border border-gray-200">
               <MapCard
                 address={mapAddress}
                 onCoords={handleCoords}
-                className="nk-print-map w-full h-64 rounded-lg border border-gray-200"
+                className="nk-print-map w-full h-80"
               />
             </div>
           )}
 
           {(buckets.weather?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.weather} />
-            </div>
+            <PhotoGrid photos={buckets.weather} />
           )}
         </Section>
       )}
 
-      {/* ===== Background (NEW) ===== */}
-      {(has(form?.backgroundManual) ||
-        has(form?.backgroundAuto) ||
-        (buckets.background?.length ?? 0) > 0) && (
+      {/* ===== Background ===== */}
+      {(has(form?.backgroundManual) || has(form?.backgroundAuto) || (buckets.background?.length ?? 0) > 0) && (
         <Section title="Background">
           {has(form?.backgroundManual) && (
-            <p className="text-[13px] leading-6 text-gray-800 text-justify mb-2">{S(form?.backgroundManual)}</p>
+            <div className="prose max-w-none mb-4">
+              <p className="text-sm leading-relaxed text-gray-700 text-justify p-4 bg-kiwi-dark/5 rounded-md border-l-4 border-kiwi-dark">
+                {S(form?.backgroundManual)}
+              </p>
+            </div>
           )}
           {has(form?.backgroundAuto) && (
-            <p className="text-[13px] leading-6 text-gray-800 text-justify italic">
-              {S(form?.backgroundAuto)}
-            </p>
-          )}
-
-          {(buckets.background?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.background} />
+            <div className="prose max-w-none mb-4">
+              <p className="text-sm leading-relaxed text-gray-700 text-justify italic p-4 bg-blue-50 rounded-md border-l-4 border-blue-400">
+                {S(form?.backgroundAuto)}
+              </p>
             </div>
+          )}
+          {(buckets.background?.length ?? 0) > 0 && (
+            <PhotoGrid photos={buckets.background} />
           )}
         </Section>
       )}
@@ -305,14 +348,12 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
       {/* ===== Safety & Compliance ===== */}
       {(has(form?.safetyCompliance) || has(form?.safetySignage) || (buckets.safety?.length ?? 0) > 0) && (
         <Section title="Safety & Compliance">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <dl className="space-y-0 mb-6">
             <Line label="All safety protocols & PPE followed?" value={S(form?.safetyCompliance)} />
             <Line label="Safety signage & access control in place?" value={S(form?.safetySignage)} />
-          </div>
+          </dl>
           {(buckets.safety?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.safety} />
-            </div>
+            <PhotoGrid photos={buckets.safety} />
           )}
         </Section>
       )}
@@ -320,31 +361,29 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
       {/* ===== Personnel & Work Progress ===== */}
       {(has(form?.workerAttendance) || has(form?.scheduleCompliance) || has(form?.materialAvailability) || (buckets.work?.length ?? 0) > 0) && (
         <Section title="Personnel & Work Progress">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <dl className="space-y-0 mb-6">
             <Line label="All workers present & on time?" value={S(form?.workerAttendance)} />
             <Line label="Progress vs schedule" value={S(form?.scheduleCompliance)} />
             <Line label="Materials available & usable?" value={S(form?.materialAvailability)} />
-          </div>
+          </dl>
           {(buckets.work?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.work} />
-            </div>
+            <PhotoGrid photos={buckets.work} />
           )}
         </Section>
       )}
 
-      {/* ===== Field Observation (NEW) ===== */}
+      {/* ===== Field Observation ===== */}
       {(has(form?.fieldObservationText) || (buckets.fieldObservation?.length ?? 0) > 0) && (
         <Section title="Field Observation">
           {has(form?.fieldObservationText) && (
-            <p className="text-[13px] leading-6 text-gray-800 text-justify mb-2">
-              {S(form?.fieldObservationText)}
-            </p>
+            <div className="prose max-w-none mb-4">
+              <p className="text-sm leading-relaxed text-gray-700 text-justify p-4 bg-kiwi-dark/5 rounded-md border-l-4 border-kiwi-dark">
+                {S(form?.fieldObservationText)}
+              </p>
+            </div>
           )}
           {(buckets.fieldObservation?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.fieldObservation} />
-            </div>
+            <PhotoGrid photos={buckets.fieldObservation} />
           )}
         </Section>
       )}
@@ -359,15 +398,13 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
       {/* ===== Additional Inspection Notes ===== */}
       {(has(form?.additionalComments) || has(form?.inspectorSummary) || has(form?.recommendations) || (buckets.notes?.length ?? 0) > 0) && (
         <Section title="Additional Inspection Notes (if any)">
-          <div className="space-y-1">
+          <dl className="space-y-0 mb-6">
             <Line label="Additional comments / observations" value={S(form?.additionalComments)} />
             <Line label="Inspector's Summary (short)" value={S(form?.inspectorSummary)} />
             <Line label="Recommendations / next actions" value={S(form?.recommendations)} />
-          </div>
+          </dl>
           {(buckets.notes?.length ?? 0) > 0 && (
-            <div className="mt-4">
-              <PhotoGrid photos={buckets.notes} />
-            </div>
+            <PhotoGrid photos={buckets.notes} />
           )}
         </Section>
       )}
@@ -382,12 +419,22 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
       {/* ===== Signature ===== */}
       {signatureData && (
         <Section title="Signature of Inspector">
-          <div className="flex items-center gap-4 rounded-lg border border-gray-200 p-4">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={signatureData} alt="Signature of Inspector" className="max-h-24 object-contain" />
-            <div className="text-[13px] text-gray-700">
-              <div className="font-semibold">{S(form?.inspectorName) || "Inspector"}</div>
-              <div className="text-gray-600">Signed on: {S(form?.signatureDateTime) || "—"}</div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 p-6 bg-kiwi-dark/5 rounded-md border-l-4 border-kiwi-dark">
+            <div className="flex-shrink-0 p-4 bg-white rounded-md border-2 border-kiwi-dark/30 shadow-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img 
+                src={signatureData} 
+                alt="Signature of Inspector" 
+                className="max-h-20 object-contain" 
+              />
+            </div>
+            <div className="flex-1">
+              <div className="text-base font-semibold text-kiwi-dark mb-1">
+                {S(form?.inspectorName) || "Inspector"}
+              </div>
+              <div className="text-sm text-gray-600">
+                Signed on: {S(form?.signatureDateTime) || "—"}
+              </div>
             </div>
           </div>
         </Section>

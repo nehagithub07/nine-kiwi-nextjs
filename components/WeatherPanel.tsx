@@ -15,34 +15,40 @@ type Props = {
   onFetched?: (w: WeatherOut) => void;
 };
 
+const FALLBACK = "--";
+
+const WIND_UNIT = "km/h";
+const TEMP_UNIT = "deg C";
+
+const WEATHER_CODES: Record<number, string> = {
+  0: "Clear sky",
+  1: "Mainly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Foggy",
+  48: "Depositing rime fog",
+  51: "Light drizzle",
+  53: "Moderate drizzle",
+  55: "Dense drizzle",
+  61: "Slight rain",
+  63: "Moderate rain",
+  65: "Heavy rain",
+  71: "Slight snow",
+  73: "Moderate snow",
+  75: "Heavy snow",
+  77: "Snow grains",
+  80: "Slight rain showers",
+  81: "Moderate rain showers",
+  82: "Violent rain showers",
+  85: "Slight snow showers",
+  86: "Heavy snow showers",
+  95: "Thunderstorm",
+  96: "Thunderstorm with slight hail",
+  99: "Thunderstorm with heavy hail",
+};
+
 function getWeatherDescription(code: number): string {
-  const codes: Record<number, string> = {
-    0: "Clear sky",
-    1: "Mainly clear",
-    2: "Partly cloudy",
-    3: "Overcast",
-    45: "Foggy",
-    48: "Depositing rime fog",
-    51: "Light drizzle",
-    53: "Moderate drizzle",
-    55: "Dense drizzle",
-    61: "Slight rain",
-    63: "Moderate rain",
-    65: "Heavy rain",
-    71: "Slight snow",
-    73: "Moderate snow",
-    75: "Heavy snow",
-    77: "Snow grains",
-    80: "Slight rain showers",
-    81: "Moderate rain showers",
-    82: "Violent rain showers",
-    85: "Slight snow showers",
-    86: "Heavy snow showers",
-    95: "Thunderstorm",
-    96: "Thunderstorm with slight hail",
-    99: "Thunderstorm with heavy hail",
-  };
-  return codes[code] || "Unknown";
+  return WEATHER_CODES[code] || "Unknown";
 }
 
 export default function WeatherPanel({ form, onField, onFetched }: Props) {
@@ -50,6 +56,8 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const debTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastKeyRef = useRef<string>("");
+  const lastAddrRef = useRef<string>("");
+  const lastAddrAtRef = useRef<number>(0);
 
   const addressQuery = useMemo(() => {
     const parts = [form?.streetAddress, form?.city, form?.state, form?.country, form?.zipCode].filter(
@@ -88,7 +96,7 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
       setLoading(true);
       try {
         const resp = await fetch(
-          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&temperature_unit=celsius&wind_speed_unit=ms`
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&temperature_unit=celsius&wind_speed_unit=kmh&timezone=auto`
         );
 
         if (!resp.ok) {
@@ -126,27 +134,34 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     setErrMsg(null);
     const q = addressQuery;
     if (!q) return;
+    const norm = q.trim().toLowerCase();
+    const now = Date.now();
+    if (lastAddrRef.current === norm && now - lastAddrAtRef.current < 5000) return;
+    lastAddrRef.current = norm; lastAddrAtRef.current = now;
 
     setLoading(true);
     try {
-      const geo = await fetch(
-        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=1&language=en&format=json`
-      );
-      const j = await geo.json();
-      const first = j?.results?.[0];
-
-      if (!first) {
+      const r = await fetch(`/api/geocode?q=${encodeURIComponent(q)}`, { cache: "no-store" });
+      if (!r.ok) {
+        setErrMsg(`Geocoding error (HTTP ${r.status}).`);
+        setLoading(false);
+        return;
+      }
+      const j = await r.json();
+      if (j?.success === false) {
+        setErrMsg(j?.error || "Could not geocode address.");
+        setLoading(false);
+        return;
+      }
+      const lat = Number(j?.lat);
+      const lon = Number(j?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
         setErrMsg("Could not geocode address.");
         setLoading(false);
         return;
       }
-
-      const lat = Number(first.latitude);
-      const lon = Number(first.longitude);
-
       onField("lat", String(lat));
       onField("lon", String(lon));
-
       await fetchWeatherByCoords(lat, lon);
     } catch (error) {
       console.error("Geocoding error:", error);
@@ -158,10 +173,8 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
   useEffect(() => {
     if (!addressQuery) return;
     if (debTimer.current) clearTimeout(debTimer.current);
-    debTimer.current = setTimeout(fetchByAddress, 600);
-    return () => {
-      if (debTimer.current) clearTimeout(debTimer.current);
-    };
+    debTimer.current = setTimeout(() => { void fetchByAddress(); }, 800);
+    return () => { if (debTimer.current) clearTimeout(debTimer.current); };
   }, [addressQuery, fetchByAddress]);
 
   useEffect(() => {
@@ -194,31 +207,48 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     );
   }, [fetchWeatherByCoords, onField]);
 
+  const readings = useMemo(
+    () => [
+      {
+        label: `Temperature (${TEMP_UNIT})`,
+        value: form?.temperature ? String(form.temperature) : FALLBACK,
+      },
+      {
+        label: "Humidity (%)",
+        value: form?.humidity ? String(form.humidity) : FALLBACK,
+      },
+      {
+        label: `Wind (${WIND_UNIT})`,
+        value: form?.windSpeed ? String(form.windSpeed) : FALLBACK,
+      },
+      {
+        label: "Conditions",
+        value: form?.weatherDescription ? String(form.weatherDescription) : FALLBACK,
+      },
+    ],
+    [form?.temperature, form?.humidity, form?.windSpeed, form?.weatherDescription]
+  );
+
   return (
-    <div className="rounded-lg border border-gray-200 p-3 bg-gray-50">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-        <div>
-          <div className="text-gray-500">Temp (°C)</div>
-          <div className="font-semibold">{form?.temperature || "—"}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Humidity (%)</div>
-          <div className="font-semibold">{form?.humidity || "—"}</div>
-        </div>
-        <div>
-          <div className="text-gray-500">Wind (m/s)</div>
-          <div className="font-semibold">{form?.windSpeed || "—"}</div>
-        </div>
-        <div className="col-span-2 sm:col-span-1">
-          <div className="text-gray-500">Conditions</div>
-          <div className="font-semibold">{form?.weatherDescription || "—"}</div>
-        </div>
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
+      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+        {readings.map((reading) => (
+          <div
+            key={reading.label}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 shadow-sm"
+          >
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {reading.label}
+            </div>
+            <div className="mt-1 text-base font-semibold text-gray-900">{reading.value}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="flex items-center gap-2 mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          className="px-3 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition disabled:opacity-60"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={fetchByAddress}
           disabled={loading || !addressQuery}
           title={addressQuery ? `Use address: ${addressQuery}` : "Enter address fields first"}
@@ -228,16 +258,15 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
 
         <button
           type="button"
-          className="px-3 py-2 text-sm rounded-lg border border-gray-300 hover:bg-gray-50 transition"
+          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
           onClick={handleUseMyLocation}
           disabled={loading}
         >
           Use my location
         </button>
 
-        {errMsg && <span className="text-xs text-red-600">{errMsg}</span>}
+        {errMsg && <span className="text-xs font-medium text-red-600">{errMsg}</span>}
       </div>
     </div>
   );
 }
-

@@ -15,5 +15,18 @@ export async function GET(req: NextRequest) {
       if (count > 0) paid = true;
     }
   } catch {}
-  return NextResponse.json({ paid });
+  const res = NextResponse.json({ paid });
+  try {
+    const isHttps = req.nextUrl.protocol === "https:";
+    if (paid && req.cookies.get("nk_has_paid")?.value !== "true") {
+      res.cookies.set("nk_has_paid", "true", {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 7,
+        secure: isHttps,
+      });
+    }
+  } catch {}
+  return res;
 }

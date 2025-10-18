@@ -78,6 +78,7 @@ export default function Navbar() {
               width={40} 
               height={40} 
               alt="Ninekiwi logo" 
+              priority
               className="transition-transform duration-300 group-hover:scale-110"
             />
             <div className="absolute inset-0 bg-[#78c850]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -91,8 +92,6 @@ export default function Navbar() {
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-2">
           <NavLink href="/">Home</NavLink>
-          
-          <NavLink href="/pay">Payments</NavLink>
           <NavLink href="/contact">Contact</NavLink>
           {user?.role === "admin" && <NavLink href="/admin">Admin</NavLink>}
         </div>
@@ -173,12 +172,7 @@ export default function Navbar() {
                       </svg>
                       Account Settings
                     </Link>
-                    <Link href="/pay" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
-                      <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                      </svg>
-                      NineKiwi Payments
-                    </Link>
+                    
                     <Link href="/early-access" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-[#78c850]/5 transition-colors">
                       <svg className="w-4 h-4 text-[#78c850]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -290,9 +284,6 @@ export default function Navbar() {
               Home
             </Link>
             
-            <Link href="/pay" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
-              Payments
-            </Link>
             <Link href="/contact" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
               Contact
             </Link>
