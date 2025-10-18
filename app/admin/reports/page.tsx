@@ -1,6 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { generateFullReportPDF, warmupExportLibs } from "@/lib/export";
+import { generateFullReportPDF } from "@/lib/export";
+
+const warmupExportLibs = () => {
+  // dynamically import the module to warm up server/client bundles without relying on a named export
+  void import("@/lib/export");
+};
 
 type ReportItem = {
   _id: string;
