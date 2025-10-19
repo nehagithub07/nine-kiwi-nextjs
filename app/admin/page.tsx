@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [payments, setPayments] = useState<any[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -258,7 +259,7 @@ export default function AdminDashboard() {
                 </>
               ) : stats?.recentReports && stats.recentReports.length > 0 ? (
                 stats.recentReports.map((r: any) => (
-                  <div key={String(r._id)} className="p-3.5 sm:p-4 hover:bg-gray-50 transition-colors group cursor-pointer">
+                  <div key={String(r._id)} className="p-3.5 sm:p-4 hover:bg-gray-50 transition-colors group">
                     <div className="flex items-start sm:items-center gap-2.5 sm:gap-3">
                       <div className="flex-shrink-0 w-9 h-9 sm:w-10 sm:h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                         <svg className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -288,9 +289,30 @@ export default function AdminDashboard() {
                           </span>
                         </div>
                       </div>
-                      <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      <button
+                        className="ml-2 text-xs sm:text-sm px-2 py-1 rounded-lg border border-red-200 text-red-700 bg-white hover:bg-red-50 flex-shrink-0"
+                        disabled={deletingId === String(r._id)}
+                        onClick={async () => {
+                          if (!confirm(`Delete report ${r.reportId}? This will also delete its photos.`)) return;
+                          setDeletingId(String(r._id));
+                          try {
+                            const resp = await fetch('/api/admin/reports', {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ id: r._id }),
+                            });
+                            const j = await resp.json().catch(() => ({} as any));
+                            if (!resp.ok) throw new Error(j?.error || 'Failed to delete');
+                            setStats((prev) => prev ? { ...prev, recentReports: (prev.recentReports || []).filter((it: any) => String(it._id) !== String(r._id)), reportsCount: Math.max(0, (prev.reportsCount || 1) - 1) } : prev);
+                          } catch (e: any) {
+                            alert(e?.message || 'Delete failed');
+                          } finally {
+                            setDeletingId(null);
+                          }
+                        }}
+                      >
+                        {deletingId === String(r._id) ? 'Deleting…' : 'Delete'}
+                      </button>
                     </div>
                   </div>
                 ))

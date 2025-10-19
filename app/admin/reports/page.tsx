@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { generateFullReportPDF } from "@/lib/export";
 
 const warmupExportLibs = () => {
@@ -25,12 +26,17 @@ export default function AdminReportsPage() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [photosOpen, setPhotosOpen] = useState<null | { reportId: string; items: any[] }>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const userId = (searchParams?.get("userId") || "").trim();
 
   useEffect(() => {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/admin/reports`, { cache: "no-store" });
+        const query = userId ? `?userId=${encodeURIComponent(userId)}` : "";
+        const res = await fetch(`/api/admin/reports${query}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "Failed to load reports");
         setReports(data.items || []);
@@ -40,7 +46,7 @@ export default function AdminReportsPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [userId]);
 
   const filtered = useMemo(() => {
     if (!q) return reports;
@@ -86,7 +92,17 @@ export default function AdminReportsPage() {
         {/* Header */}
         <div className="mb-6 sm:mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Reports Management</h1>
-          <p className="text-gray-600 text-sm sm:text-base">View and manage all submitted reports</p>
+          <p className="text-gray-600 text-sm sm:text-base">{userId ? "Viewing reports for selected user" : "View and manage all submitted reports"}</p>
+          {userId && (
+            <div className="mt-3 inline-flex items-center gap-2 bg-blue-50 border border-blue-200 text-blue-800 px-3 py-1.5 rounded-lg text-sm">
+              <span className="font-medium">Filter:</span>
+              <span className="font-mono">userId={userId}</span>
+              <button
+                className="ml-2 text-blue-600 hover:text-blue-800 underline"
+                onClick={() => router.push("/admin/reports")}
+              >Clear</button>
+            </div>
+          )}
         </div>
 
         {/* Search and Stats */}
@@ -178,7 +194,7 @@ export default function AdminReportsPage() {
                         }) : "—"}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex items-center gap-2">
+                       <div className="flex items-center gap-2">
                           <button
                             onMouseEnter={() => warmupExportLibs()}
                             onFocus={() => warmupExportLibs()}
@@ -243,6 +259,33 @@ export default function AdminReportsPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                             Photos
+                          </button>
+                          <button
+                            className="inline-flex items-center px-3 py-1.5 border border-red-200 text-red-700 rounded-lg text-sm font-medium bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            disabled={deleting === r._id}
+                            onClick={async () => {
+                              if (!confirm(`Delete report ${r.reportId}? This will also delete its photos.`)) return;
+                              setDeleting(r._id);
+                              try {
+                                const resp = await fetch('/api/admin/reports', {
+                                  method: 'DELETE',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: r._id }),
+                                });
+                                const j = await resp.json().catch(() => ({} as any));
+                                if (!resp.ok) throw new Error(j?.error || 'Failed to delete');
+                                setReports((prev) => prev.filter((it) => it._id !== r._id));
+                              } catch (e: any) {
+                                alert(e?.message || 'Delete failed');
+                              } finally {
+                                setDeleting(null);
+                              }
+                            }}
+                          >
+                            <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h2a2 2 0 012 2v2m-7 0h8" />
+                            </svg>
+                            {deleting === r._id ? 'Deleting...' : 'Delete'}
                           </button>
                         </div>
                       </td>
@@ -358,6 +401,33 @@ export default function AdminReportsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                       </svg>
                       View Photos
+                    </button>
+                    <button
+                      className="flex-1 inline-flex items-center justify-center px-4 py-2.5 border border-red-200 text-red-700 rounded-lg text-sm font-medium bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      disabled={deleting === r._id}
+                      onClick={async () => {
+                        if (!confirm(`Delete report ${r.reportId}? This will also delete its photos.`)) return;
+                        setDeleting(r._id);
+                        try {
+                          const resp = await fetch('/api/admin/reports', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: r._id }),
+                          });
+                          const j = await resp.json().catch(() => ({} as any));
+                          if (!resp.ok) throw new Error(j?.error || 'Failed to delete');
+                          setReports((prev) => prev.filter((it) => it._id !== r._id));
+                        } catch (e: any) {
+                          alert(e?.message || 'Delete failed');
+                        } finally {
+                          setDeleting(null);
+                        }
+                      }}
+                    >
+                      <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h2a2 2 0 012 2v2m-7 0h8" />
+                      </svg>
+                      Delete
                     </button>
                   </div>
                 </div>

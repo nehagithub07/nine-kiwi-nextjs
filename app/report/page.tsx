@@ -17,6 +17,7 @@ const VoiceCapture = dynamic(() => import("@/components/VoiceCapture"), { ssr: f
 const MapCard = dynamic(() => import("@/components/MapCard"), { ssr: false, loading: () => <div className="text-sm text-gray-500">Loading map…</div> });
 
 import { generateFullReportPDF, generateFullReportDOCX } from "@/lib/export";
+import { saveReport } from "@/lib/reportsClient";
 import { saveDraft as saveOfflineDraft, loadDraft as loadOfflineDraft, draftKeyForReport } from "@/lib/offlineStore";
 
 // dynamic warmup helper — imports exporter code at idle to warm caches
@@ -419,6 +420,23 @@ export default function Page() {
     } catch {}
   }, [form]);
 
+  // Persist report to database when online and reportId is present (debounced)
+  useEffect(() => {
+    let to: any;
+    const persist = async () => {
+      try {
+        const id = String(form.reportId || "").trim();
+        if (!id) return;
+        if (typeof navigator !== "undefined" && !navigator.onLine) return;
+        await saveReport({ reportId: id, data: form as any, signatureData: signatureData ?? null });
+      } catch {
+        // no-op: keep UI responsive; admin lists may simply miss this save if unauthorized/offline
+      }
+    };
+    to = setTimeout(persist, 1200);
+    return () => { if (to) clearTimeout(to); };
+  }, [form, signatureData]);
+
   // Disclaimer: show once until accepted
   useEffect(() => {
     try {
@@ -461,6 +479,10 @@ export default function Page() {
       try {
         const hasId = String(form.reportId || '').trim().length > 0;
         if (!hasId) return;
+        // Ensure report metadata exists in DB once back online
+        try {
+          await saveReport({ reportId: String(form.reportId).trim(), data: form as any, signatureData: signatureData ?? null });
+        } catch {}
         const keys = Object.keys(sectionPhotos || {});
         for (const k of keys) {
           try {
@@ -888,6 +910,7 @@ export default function Page() {
                 <Link href="/report" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Report Tool</Link>
                 <Link href="/account" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Account</Link>
                 <Link href="/pay" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Payments</Link>
+                <Link href="/docs" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>My Documents</Link>
                 {user?.role === "admin" && (
                   <Link href="/admin" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
                 )}

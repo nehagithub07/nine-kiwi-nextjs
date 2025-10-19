@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<any[]>([]);
@@ -31,6 +32,7 @@ export default function AdminUsersPage() {
               <th className="p-2">Email</th>
               <th className="p-2">Role</th>
               <th className="p-2">Created</th>
+              <th className="p-2">Reports</th>
             </tr>
           </thead>
           <tbody>
@@ -40,6 +42,15 @@ export default function AdminUsersPage() {
                 <td className="p-2">{u.email}</td>
                 <td className="p-2">{u.role}</td>
                 <td className="p-2">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}</td>
+                <td className="p-2">
+                  <Link
+                    href={`/admin/reports?userId=${encodeURIComponent(String(u._id))}`}
+                    className="text-[#78c850] hover:text-[#5fa83d] underline"
+                    title="View user's reports"
+                  >
+                    View reports
+                  </Link>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -48,4 +59,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
