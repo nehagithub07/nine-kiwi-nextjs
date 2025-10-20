@@ -1,11 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function ResetPasswordPage() {
+  const params = useSearchParams();
   const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const t = params?.get("token") || "";
+    if (t) setToken(t);
+  }, [params]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -25,10 +32,12 @@ export default function ResetPasswordPage() {
         ) : (
           <>
             {error && <p className="text-sm text-red-600">{error}</p>}
-            <div className="space-y-1">
-              <label className="text-sm">Reset Token</label>
-              <input className="w-full border rounded px-3 py-2" value={token} onChange={(e) => setToken(e.target.value)} required />
-            </div>
+            {!token && (
+              <div className="space-y-1">
+                <label className="text-sm">Reset Token</label>
+                <input className="w-full border rounded px-3 py-2" value={token} onChange={(e) => setToken(e.target.value)} required />
+              </div>
+            )}
             <div className="space-y-1">
               <label className="text-sm">New Password</label>
               <input type="password" className="w-full border rounded px-3 py-2" value={password} onChange={(e) => setPassword(e.target.value)} required />
@@ -40,4 +49,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-

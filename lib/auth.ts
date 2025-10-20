@@ -119,7 +119,7 @@ function buildLoginEmailHTML(opts: {
   const subject = "🥝 Recent Login Notification";
 
   const supportEmail = opts.supportEmail || "contact@ninekiwi.com";
-  const resetUrl = `${opts.baseUrl.replace(/\/$/, "")}/reset-password`;
+  const resetBase = `${opts.baseUrl.replace(/\/$/, "")}/reset-password`; const resetUrl = opts.resetToken ? `${resetBase}?token=${encodeURIComponent(opts.resetToken)}` : resetBase;
   const adminSignature = process.env.ADMIN_SIGNATURE || "The NineKiwi Team";
 
   // Prefer explicit PUBLIC_LOGO_URL; else derive from PUBLIC_BASE_URL/VERCEL_URL; else use CID.
@@ -151,7 +151,7 @@ If this was you, no further action is needed.
 If you did not recognize this login, please secure your account immediately by changing your password.
 
 To reset your password, go to: ${resetUrl}
-${opts.resetToken ? `Your reset token: ${opts.resetToken}\nPaste this token on the reset page to proceed.` : ""}
+${opts.resetToken ? `Your reset token: ${opts.resetToken}\nIf it doesn't prefill, paste this token on the reset page.` : ""}
 
 Thank you,
 ${adminSignature}
@@ -419,4 +419,7 @@ export const authOptions: NextAuthOptions = {
   // You can add custom pages if desired:
   pages: { signIn: "/login" }
 };
+
+
+
 

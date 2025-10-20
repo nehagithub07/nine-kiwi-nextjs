@@ -55,6 +55,7 @@ const SummaryCard: React.FC<{
 
 export default function AutoSummary({ form, photos }: Props) {
   const [downloading, setDownloading] = useState<null | "pdf" | "word">(null);
+  const [elapsed, setElapsed] = useState(0);
   const availablePhotos = useMemo(() => (Array.isArray(photos) ? photos : []), [photos]);
   const [selectedSet, setSelectedSet] = useState<Set<number>>(new Set());
 
@@ -198,6 +199,8 @@ export default function AutoSummary({ form, photos }: Props) {
 
   async function download(type: "pdf" | "word") {
     setDownloading(type);
+    setElapsed(0);
+    const timer = setInterval(() => setElapsed((s) => s + 1), 1000);
     try {
       if (type === "pdf") {
         const { generateAutoSummaryPDF } = await import("@/lib/export");
@@ -207,7 +210,9 @@ export default function AutoSummary({ form, photos }: Props) {
         await generateAutoSummaryWord(form, selectedPhotos);
       }
     } finally {
+      clearInterval(timer);
       setDownloading(null);
+      setElapsed(0);
     }
   }
 
@@ -229,7 +234,7 @@ export default function AutoSummary({ form, photos }: Props) {
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
                 <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
               </svg>
-              {downloading === "pdf" ? "Preparing..." : "Export PDF"}
+              {downloading === "pdf" ? `Generating... ${elapsed}s` : "Export PDF"}
             </button>
             <button
               onClick={() => download("word")}
@@ -240,7 +245,7 @@ export default function AutoSummary({ form, photos }: Props) {
                 <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" />
                 <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
               </svg>
-              {downloading === "word" ? "Preparing..." : "Export Word"}
+              {downloading === "word" ? `Preparing... ${elapsed}s` : "Export Word"}
             </button>
           </div>
         </div>
