@@ -1716,7 +1716,7 @@ export default function Page() {
                 <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
               </svg>
             </div>
-            <div className="text-lg font-semibold text-gray-900">${exportMode === "docx" ? "Preparing Word report" : "Generating PDF report"}</div>
+            <div className="text-lg font-semibold text-gray-900">{exportMode === "docx" ? "Preparing Word report" : "Generating PDF report"}</div>
             <div className="mt-1 text-sm text-gray-600">Rendering photos and layout. Please don’t close this tab.</div>
             <div className="mt-3 text-sm font-medium text-gray-700">Elapsed: {pdfElapsed}s</div>
           </div>

@@ -83,21 +83,21 @@ export default function Navbar() {
     hideOnReport ? null : (
     <>
     <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#78c850]/20 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-sm">
-      <nav className="container mx-auto px-4 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group" aria-label="Ninekiwi Home">
+      <nav className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Logo - Fixed sizing for mobile */}
+        <Link href="/" className="flex items-center gap-2 group shrink-0" aria-label="Ninekiwi Home">
           <div className="relative">
             <Image 
               src="/logo.png" 
-              width={48} 
-              height={48} 
+              width={40} 
+              height={40} 
               alt="Ninekiwi logo" 
               priority
-              className="w-12 h-12 md:w-10 md:h-10 transition-transform duration-300 group-hover:scale-110"
+              className="w-10 h-10 transition-transform duration-300 group-hover:scale-110"
             />
             <div className="absolute inset-0 bg-[#78c850]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
-          <span className="text-2xl md:text-xl font-heading font-extrabold tracking-tight">
+          <span className="text-xl sm:text-2xl font-heading font-extrabold tracking-tight">
             <span className="text-gray-800">nine</span>
             <span className="bg-gradient-to-r from-[#78c850] to-[#78c850] bg-clip-text text-transparent">kiwi</span>
           </span>
@@ -233,9 +233,9 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Menu Button */}
+        {/* Mobile Menu Button - Properly spaced */}
         <button
-          className="md:hidden text-[#78c850] p-2 rounded-xl hover:bg-[#78c850]/5 transition-colors h-10 w-10 flex items-center justify-center ml-auto"
+          className="md:hidden text-[#78c850] p-2 rounded-xl hover:bg-[#78c850]/5 transition-colors flex items-center justify-center shrink-0"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
           aria-expanded={open}
@@ -267,7 +267,7 @@ export default function Navbar() {
           {/* User Info (Mobile) */}
           {user && (
             <div className="flex items-center gap-3 p-3 bg-gradient-to-br from-[#78c850]/10 to-[#78c850]/5 rounded-xl border border-[#78c850]/20">
-              <span className="inline-flex h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-[#78c850] to-[#78c850] border-2 border-white shadow-md">
+              <span className="inline-flex h-10 w-10 rounded-full overflow-hidden bg-gradient-to-br from-[#78c850] to-[#78c850] border-2 border-white shadow-md shrink-0">
                 {profile?.avatarUrl || (user as any)?.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={(profile?.avatarUrl || (user as any)?.image) as string} alt="avatar" className="h-full w-full object-cover" />
@@ -293,9 +293,13 @@ export default function Navbar() {
             <Link href="/contact" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
               Contact
             </Link>
-            <Link href="/account" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
-              Account
-            </Link>
+            
+            {user && (
+              <Link href="/account" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
+                Account
+              </Link>
+            )}
+            
             {user?.role === "admin" && (
               <Link href="/admin" className="block px-4 py-2.5 rounded-lg border border-[#78c850]/30 text-sm font-medium text-gray-700 hover:bg-[#78c850]/5 hover:border-[#78c850]/50 transition-colors">
                 Admin
@@ -318,7 +322,6 @@ export default function Navbar() {
                 <Link href="/admin/login" className="text-xs text-center text-gray-500 hover:text-[#78c850] underline py-1">
                   Admin Login
                 </Link>
-                
               </div>
             </div>
           ) : (
@@ -335,13 +338,8 @@ export default function Navbar() {
         </div>
       </div>
     </header>
-    <div className="h-14 md:h-16" aria-hidden="true" />
+    <div className="h-16" aria-hidden="true" />
     </>
     )
   );
 }
-
-
-
-
-
