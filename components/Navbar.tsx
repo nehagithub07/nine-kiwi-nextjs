@@ -16,6 +16,10 @@ export default function Navbar() {
   const pathname = usePathname();
   const hideOnReport = pathname?.startsWith("/report");
 
+  async function handleLogout() {
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
+    await signOut({ callbackUrl: "/" });
+  }
   // Close menus on route change
   useEffect(() => {
     setOpen(false);
@@ -212,7 +216,7 @@ export default function Navbar() {
                     
                     <div className="border-t border-[#78c850]/20 p-3">
                       <button 
-                        onClick={() => signOut({ callbackUrl: "/" })} 
+                        onClick={handleLogout} 
                         className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 font-medium transition-all text-sm"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -318,7 +322,7 @@ export default function Navbar() {
             </div>
           ) : (
             <button 
-              onClick={() => signOut({ callbackUrl: "/" })} 
+              onClick={handleLogout} 
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border-2 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300 font-medium transition-all text-sm"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

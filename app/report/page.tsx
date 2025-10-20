@@ -209,6 +209,7 @@ export default function Page() {
 
   async function logout() {
     try {
+      try { await fetch("/api/auth/logout", { method: "POST" }); } catch {}
       await signOut({ callbackUrl: "/login" });
     } catch {
       window.location.href = "/login";
