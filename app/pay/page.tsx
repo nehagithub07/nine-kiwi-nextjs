@@ -21,6 +21,8 @@ export default function PayPage() {
   const [terms, setTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(true);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
 
   useEffect(() => {
     // ensure animated sections become visible
@@ -28,6 +30,11 @@ export default function PayPage() {
       document
         .querySelectorAll<HTMLElement>(".animated-element")
         .forEach((el) => el.classList.add("animate-fade-in-up"));
+    } catch {}
+    // Check disclaimer acceptance
+    try {
+      const v = localStorage.getItem("nk_disclaimer_accepted");
+      setDisclaimerAccepted(!!v);
     } catch {}
     // Prefill user details if logged in
     (async () => {
@@ -125,6 +132,54 @@ export default function PayPage() {
 
   return (
     <div className="bg-kiwi-light font-body text-kiwi-gray min-h-[100vh] relative overflow-x-hidden">
+      {!disclaimerAccepted && !disclaimerDismissed && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="relative bg-white max-w-3xl w-[92vw] md:w-[780px] rounded-xl shadow-xl p-6 overflow-auto max-h-[85vh]">
+            <button
+              type="button"
+              aria-label="Close disclaimer"
+              className="absolute top-3 right-3 p-2 rounded-md hover:bg-gray-100 text-gray-500"
+              onClick={() => setDisclaimerDismissed(true)}
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">Disclaimer</h3>
+            <div className="text-sm text-gray-800 space-y-3 leading-6">
+              <p>Disclaimer regarding using NINEKIWI.COM report generating tool:</p>
+              <p>
+                NINEKIWI.COM provides tools for generating field inspection and construction progress reports. All
+                information, data entries, and photographs included in the reports are provided solely by the user,
+                field inspector, or the company using the application. NINEKIWI.COM is not responsible for the accuracy,
+                completeness, or appropriateness of any content or images entered or generated through the platform. It
+                is the sole responsibility of the user, inspector, or company to verify and confirm the accuracy of all
+                information contained in the generated reports before using, distributing, or relying on them for any
+                purpose.
+              </p>
+            </div>
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setDisclaimerDismissed(true)}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => {
+                  try { localStorage.setItem("nk_disclaimer_accepted", "1"); } catch {}
+                  setDisclaimerAccepted(true);
+                }}
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
 
       <div className="kiwi-shape -top-20 -left-20" />

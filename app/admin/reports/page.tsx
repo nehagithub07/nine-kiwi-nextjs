@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { generateFullReportPDF } from "@/lib/export";
 
@@ -20,8 +20,17 @@ type ReportItem = {
 };
 
 export default function AdminReportsPage() {
+  return (
+    <Suspense fallback={<div />}> 
+      <AdminReportsContent />
+    </Suspense>
+  );
+}
+
+function AdminReportsContent() {
   const [reports, setReports] = useState<ReportItem[]>([]);
   const [q, setQ] = useState("");
+  const [groupByUser, setGroupByUser] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [photosOpen, setPhotosOpen] = useState<null | { reportId: string; items: any[] }>(null);
@@ -57,6 +66,18 @@ export default function AdminReportsPage() {
       r.user?.name?.toLowerCase().includes(s)
     );
   }, [q, reports]);
+
+  const grouped = useMemo(() => {
+    if (!groupByUser) return null;
+    const map = new Map<string, { user: any; items: ReportItem[] }>();
+    for (const r of filtered) {
+      const uid = String(r.userId || "unknown");
+      const cur = map.get(uid) || { user: r.user, items: [] };
+      cur.items.push(r);
+      map.set(uid, cur);
+    }
+    return Array.from(map.entries()).map(([uid, v]) => ({ userId: uid, user: v.user, items: v.items }));
+  }, [filtered, groupByUser]);
 
   const getStatusColor = (status?: string) => {
     if (!status) return "bg-gray-100 text-gray-700";

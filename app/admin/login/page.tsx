@@ -11,11 +11,11 @@ export default function AdminLoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // If already authenticated as admin, skip the login page
+  // If already authenticated as admin, go to home
   useEffect(() => {
     const role = (session?.user as any)?.role;
     if (role === "admin") {
-      router.replace("/admin");
+      router.replace("/");
     }
   }, [session, router]);
 
@@ -35,7 +35,7 @@ export default function AdminLoginPage() {
       setError("Not an admin account");
       return;
     }
-    router.push("/admin");
+    router.push("/");
   }
 
   return (

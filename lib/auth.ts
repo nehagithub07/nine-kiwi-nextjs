@@ -135,7 +135,7 @@ function buildLoginEmailHTML(opts: {
       : "";
 
   const cidName = "ninekiwi-logo";
-  const logoSrc = publicLogoUrl ? publicLogoUrl : `cid:${cidName}`;
+  const logoSrc = `cid:${cidName}`;
 
   const text = `Hi ${opts.userName || "User"},
 
@@ -207,7 +207,7 @@ You are receiving this email because a login to your account was detected. If yo
     text,
     html,
     cidName,
-    wantsCID: !publicLogoUrl, // use CID only if no public HTTPS logo available
+    wantsCID: true, // always attach logo for reliable rendering
   };
 }
 

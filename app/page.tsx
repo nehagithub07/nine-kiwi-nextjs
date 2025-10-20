@@ -3,7 +3,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
-
+import type { ComponentType } from "react";
+import type { LucideProps } from "lucide-react";
+import { WifiOff, Globe, Mic, MapPin, DollarSign, Users } from "lucide-react";
 export default function LandingPage() {
   const { data } = useSession();
   const isAuthed = !!data?.user;
@@ -44,7 +46,7 @@ export default function LandingPage() {
                 the world's diverse construction ecosystem.
               </p>
               <a
-                href="/"
+                href="/early-access"
                 className="inline-block bg-kiwi-green hover:bg-kiwi-dark text-white font-bold py-4 px-10 rounded-full text-lg transition duration-300 transform hover:scale-105 shadow-lg"
               >
                 Join Waitlist
@@ -125,46 +127,33 @@ export default function LandingPage() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[
-                [
-                  "Works Offline",
-                  "Network issues on site won't stop productivity. Sync when you're back online.",
-                ],
-                [
-                  "Multilingual Support",
-                  "Break language barriers with real-time translation for diverse workforces.",
-                ],
-                [
-                  "Voice-to-Text Reports",
-                  "Dictate reports on site with powerful voice recognition.",
-                ],
-                [
-                  "Photo Evidence with GPS",
-                  "Geotagged photos provide trust and transparency for clients and teams.",
-                ],
-                [
-                  "Cost-efficient SaaS",
-                  "Easy for small contractors to adopt with flexible pricing plans.",
-                ],
-                [
-                  "Real-time Collaboration",
-                  "Project managers get instant updates from site teams as work progresses.",
-                ],
-              ].map(([title, desc], idx) => (
-                <div
-                  key={String(title)}
-                  className="group feature-card bg-white rounded-2xl p-8 shadow-lg border border-gray-200 animated-element"
-                  style={{ animationDelay: `${idx * 0.1}s` as any }}
-                >
-                  <div className="text-kiwi-green mb-4">★</div>
-                  <h3 className="text-xl font-bold text-kiwi-dark mb-2">
-                    {title}
-                  </h3>
-                  <p className="text-kiwi-gray">{desc}</p>
-                </div>
-              ))}
-            </div>
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+  {(() => {
+    const features: Array<[string, string, ComponentType<LucideProps>]> = [
+      ["Works Offline", "Network issues on site won't stop productivity. Sync when you're back online.", WifiOff],
+      ["Multilingual Support", "Break language barriers with real-time translation for diverse workforces.", Globe],
+      ["Voice-to-Text Reports", "Dictate reports on site with powerful voice recognition.", Mic],
+      ["Photo Evidence with GPS", "Geotagged photos provide trust and transparency for clients and teams.", MapPin],
+      ["Cost-efficient SaaS", "Easy for small contractors to adopt with flexible pricing plans.", DollarSign],
+      ["Real-time Collaboration", "Project managers get instant updates from site teams as work progresses.", Users],
+    ];
+    return features.map(([title, desc, Icon], idx) => (
+      <div
+        key={String(title)}
+        className="group feature-card bg-white rounded-2xl p-8 shadow-lg border border-gray-200 animated-element"
+        style={{ animationDelay: `${idx * 0.1}s` as any }}
+      >
+        <div className="text-kiwi-green mb-4">
+          <Icon className="w-8 h-8" />
+        </div>
+        <h3 className="text-xl font-bold text-kiwi-dark mb-2">
+          {title}
+        </h3>
+        <p className="text-kiwi-gray">{desc}</p>
+      </div>
+    ));
+  })()}
+</div>
           </div>
         </section>
 
@@ -181,12 +170,12 @@ export default function LandingPage() {
               Join our early access list and help shape the future of
               construction technology for the global workforce.
             </p>
-            <a
-              href="mailto:hello@ninekiwi.com?subject=Early%20Access%20Request"
+            <Link
+              href="/get-early-access"
               className="bg-kiwi-green hover:bg-white hover:text-kiwi-dark font-bold py-4 px-10 rounded-full text-lg transition duration-300 transform hover:scale-105 shadow-lg"
             >
               Request Early Access
-            </a>
+            </Link>
           </div>
         </section>
       </main>

@@ -1,11 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 import { signIn, useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 export default function LoginContent() {
   const router = useRouter();
-  const params = useSearchParams();
   const { data: session } = useSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,17 +13,11 @@ export default function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [hasGoogle, setHasGoogle] = useState<boolean | null>(null);
 
-  // If already authenticated, redirect away from login
+  // If already authenticated, redirect to home
   useEffect(() => {
     if (!session?.user) return;
-    const role = (session.user as any).role;
-    const callbackUrl = params.get("callbackUrl") || "/";
-    if (role === "admin") {
-      router.replace("/admin");
-    } else {
-      router.replace(callbackUrl);
-    }
-  }, [session, params, router]);
+    router.replace("/");
+  }, [session, router]);
 
   // Detect providers so we don't show Google button if not configured
   useEffect(() => {
@@ -49,26 +42,17 @@ export default function LoginContent() {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    const callbackUrl = params.get("callbackUrl") || "/";
     const res = await signIn("credentials", {
       redirect: false,
       email,
       password,
-      callbackUrl,
     });
     setLoading(false);
     if (res?.error) {
       setError("Invalid email or password");
       return;
     }
-    const me = await fetch("/api/auth/me", { cache: "no-store" })
-      .then((r) => r.json())
-      .catch(() => ({} as any));
-    if (!me?.user || me.user.role !== "admin") {
-      router.push(res?.url || callbackUrl);
-      return;
-    }
-    router.push("/admin");
+    router.push("/");
   }
 
   return (
@@ -104,7 +88,7 @@ export default function LoginContent() {
           {hasGoogle !== false && (
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: params.get("callbackUrl") || "/" })}
+              onClick={() => signIn("google", { callbackUrl: "/" })}
               className="w-full border-2 border-gray-300 hover:border-[#78c850] hover:bg-gray-50 px-4 py-3 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 group"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

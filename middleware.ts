@@ -16,7 +16,7 @@ export async function middleware(req: NextRequest) {
   // Always allow API auth endpoints
   if (pathname.startsWith("/api/auth")) return NextResponse.next();
 
-  // Payment page: require login; redirect admins directly to report
+  // Payment page: require login; redirect admins or already-paid users directly to report
   if (pathname === "/pay") {
     let token: any = null;
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
@@ -26,7 +26,19 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     const role = (token as any)?.role || "user";
-    const alreadyPaid = req.cookies.get("nk_has_paid")?.value === "true" || (token as any)?.hasPaid === true;
+    // Ask server to compute payment status (DB + cookie) to avoid trusting client state
+    let alreadyPaid = false;
+    try {
+      const statusUrl = new URL("/api/payment/status", req.url);
+      const r = await fetch(statusUrl.toString(), {
+        headers: { cookie: req.headers.get("cookie") || "" },
+        cache: "no-store",
+      });
+      if (r.ok) {
+        const j: any = await r.json();
+        alreadyPaid = !!j?.paid;
+      }
+    } catch {}
     if (role === "admin" || alreadyPaid) {
       return NextResponse.redirect(new URL("/report", req.url));
     }
@@ -36,10 +48,9 @@ export async function middleware(req: NextRequest) {
   // Public pages bypass auth
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
 
-  // Access to report tool requires BOTH login and a valid paid cookie (admins bypass payment).
+  // Access to report tool requires BOTH login and server-verified payment (admins bypass payment).
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
-    const paidCookie = req.cookies.get("nk_has_paid")?.value === "true"; // httpOnly server cookie
     try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
     if (!token) {
       const url = new URL("/login", req.url);
@@ -47,10 +58,23 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(url);
     }
     const role = (token as any)?.role || "user";
-    const tokenPaid = (token as any)?.hasPaid === true;
-    const paid = paidCookie || tokenPaid;
-    if (role !== "admin" && !paid) {
-      return NextResponse.redirect(new URL("/pay", req.url));
+    if (role !== "admin") {
+      // Ask server to compute payment status (DB + httpOnly cookie)
+      let paid = false;
+      try {
+        const statusUrl = new URL("/api/payment/status", req.url);
+        const r = await fetch(statusUrl.toString(), {
+          headers: { cookie: req.headers.get("cookie") || "" },
+          cache: "no-store",
+        });
+        if (r.ok) {
+          const j: any = await r.json();
+          paid = !!j?.paid;
+        }
+      } catch {}
+      if (!paid) {
+        return NextResponse.redirect(new URL("/pay", req.url));
+      }
     }
   }
 

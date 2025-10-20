@@ -10,6 +10,7 @@ export default function ContactPage() {
   const [sent, setSent] = useState<null | "ok" | "err">(null);
   const [err, setErr] = useState<string>("");
   const [honeypot, setHoneypot] = useState(""); // spam trap (should stay empty)
+  const [toastOpen, setToastOpen] = useState(false);
 
   const supportEmail =
     process.env.NEXT_PUBLIC_SUPPORT_EMAIL?.trim() || "support@ninekiwi.com";
@@ -59,6 +60,7 @@ export default function ContactPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || "Failed to send message");
       setSent("ok");
+      setToastOpen(true);
       setName(""); setEmail(""); setSubject(""); setMessage("");
     } catch (e: any) {
       setSent("err");
@@ -68,8 +70,40 @@ export default function ContactPage() {
     }
   }
 
+  // Auto-hide success toast
+  useEffect(() => {
+    if (!toastOpen) return;
+    const t = setTimeout(() => setToastOpen(false), 3000);
+    return () => clearTimeout(t);
+  }, [toastOpen]);
+
   return (
     <div className="min-h-[70vh] bg-gradient-to-br from-gray-50 to-[#78c850]/5">
+      {/* Success Toast */}
+      <div
+        className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 transition-all duration-200 ${
+          toastOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        <div className="flex items-center gap-3 bg-[#78c850] text-white px-4 py-3 rounded-xl shadow-lg">
+          <svg className="w-5 h-5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span className="text-sm font-medium">Thanks! Your message has been sent.</span>
+          <button
+            type="button"
+            onClick={() => setToastOpen(false)}
+            aria-label="Close notification"
+            className="ml-2 text-white/80 hover:text-white"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
       <div className="container mx-auto px-4 sm:px-6 py-10">
         <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8">
           <div className="text-center mb-6">
@@ -91,11 +125,7 @@ export default function ContactPage() {
             {sent === "ok" ? "Your message has been sent." : sent === "err" ? `Error: ${err}` : ""}
           </div>
 
-          {sent === "ok" && (
-            <div className="mb-4 p-3.5 rounded-lg bg-[#78c850]/10 border border-[#78c850]/20 text-kiwi-dark">
-              Thanks! Your message has been sent.
-            </div>
-          )}
+          {/* Inline success removed in favor of toast */}
           {sent === "err" && (
             <div className="mb-4 p-3.5 rounded-lg bg-red-50 border border-red-200 text-red-700">
               {err}

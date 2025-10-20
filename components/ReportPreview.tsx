@@ -152,8 +152,8 @@ const Section: React.FC<{
         className,
       ].join(" ")}
     >
-      <div className="border-b-2 border-kiwi-dark bg-gradient-to-r from-kiwi-dark/5 to-transparent px-6 py-4">
-        <h2 className="text-lg font-semibold text-kiwi-dark tracking-tight">
+      <div className="border-b border-kiwi-dark/30 bg-gradient-to-r from-kiwi-dark/5 to-transparent px-6 py-3">
+        <h2 className="text-base font-semibold text-kiwi-dark tracking-tight">
           {title}
         </h2>
       </div>
@@ -251,6 +251,23 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
   const handleCoords = (lat: number, lon: number) => {
     console.log(`Map coords in preview: ${lat}, ${lon}`);
   };
+
+  const conclusionParts = useMemo(() => {
+    const parts: string[] = [];
+    if (has(form?.status)) parts.push(`Overall status: ${S(form?.status)}.`);
+    if (has(form?.scheduleCompliance)) parts.push(`Schedule: ${S(form?.scheduleCompliance)}.`);
+    if (has(form?.materialAvailability)) parts.push(`Materials: ${S(form?.materialAvailability)}.`);
+    if (has(form?.safetyCompliance)) parts.push(`Safety: ${S(form?.safetyCompliance)}.`);
+    return parts;
+  }, [form?.status, form?.scheduleCompliance, form?.materialAvailability, form?.safetyCompliance]);
+
+  const conclusionExtras = useMemo(() => {
+    const arr: string[] = [];
+    if (has(form?.additionalComments)) arr.push(`Notes & Recommendations: ${S(form?.additionalComments)}`);
+    if (has(form?.inspectorSummary)) arr.push(`Inspector Summary: ${S(form?.inspectorSummary)}`);
+    if (has(form?.recommendations)) arr.push(`Recommended Actions: ${S(form?.recommendations)}`);
+    return arr;
+  }, [form?.additionalComments, form?.inspectorSummary, form?.recommendations]);
 
   return (
     <div id="reportPreview" className="report-preview space-y-6 bg-transparent max-w-6xl mx-auto">
@@ -436,6 +453,28 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
                 Signed on: {S(form?.signatureDateTime) || "—"}
               </div>
             </div>
+          </div>
+        </Section>
+      )}
+
+      {/* ===== Conclusion (Auto) ===== */}
+      {(conclusionParts.length > 0 || conclusionExtras.length > 0) && (
+        <Section title="Conclusion">
+          <div className="prose max-w-none">
+            {conclusionParts.length > 0 ? (
+              <p className="text-sm leading-relaxed text-gray-800 text-justify">
+                {conclusionParts.join(" ")}
+              </p>
+            ) : (
+              <p className="text-sm leading-relaxed text-gray-600 text-justify">
+                No critical blockers observed at the time of inspection. Continue to monitor schedule, safety, and materials.
+              </p>
+            )}
+            {conclusionExtras.map((line, idx) => (
+              <p key={idx} className="text-sm leading-relaxed text-gray-700 text-justify">
+                {line}
+              </p>
+            ))}
           </div>
         </Section>
       )}

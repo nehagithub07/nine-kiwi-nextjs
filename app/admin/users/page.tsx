@@ -33,6 +33,7 @@ export default function AdminUsersPage() {
               <th className="p-2">Role</th>
               <th className="p-2">Created</th>
               <th className="p-2">Reports</th>
+              <th className="p-2">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -42,6 +43,7 @@ export default function AdminUsersPage() {
                 <td className="p-2">{u.email}</td>
                 <td className="p-2">{u.role}</td>
                 <td className="p-2">{u.createdAt ? new Date(u.createdAt).toLocaleString() : ""}</td>
+                <td className="p-2">{typeof u.reportsCount === 'number' ? u.reportsCount : '-'}</td>
                 <td className="p-2">
                   <Link
                     href={`/admin/reports?userId=${encodeURIComponent(String(u._id))}`}

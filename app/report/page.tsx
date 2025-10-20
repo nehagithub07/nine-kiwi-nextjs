@@ -212,83 +212,103 @@ export default function Page() {
   }
 
   /* ---------------- State ---------------- */
-  const [form, setForm] = useState<FormData>(() => ({
-    purposeOfFieldVisit: "",
-    reportId: "",
+  const [form, setForm] = useState<FormData>(() => {
+    const now = new Date();
+    const base: any = {
+      purposeOfFieldVisit: "",
+      reportId: "",
 
-    clientName: "",
-    companyName: "",
-    inspectorName: "",
-    nameandAddressOfCompany: "",
-    contactPhone: "",
-    contactEmail: "",
+      clientName: "",
+      companyName: "",
+      inspectorName: "",
+      nameandAddressOfCompany: "",
+      contactPhone: "",
+      contactEmail: "",
 
-    location: "",
-    streetAddress: "",
-    city: "",
-    state: "",
-    country: "",
-    zipCode: "",
+      location: "",
+      streetAddress: "",
+      city: "",
+      state: "",
+      country: "",
+      zipCode: "",
 
-    lat: "",
-    lon: "",
+      lat: "",
+      lon: "",
 
-    inspectionDate: "",
-    startInspectionTime: "",
+      inspectionDate: now.toISOString().split("T")[0],
+      startInspectionTime: "12:00",
 
-    temperature: "",
-    humidity: "",
-    windSpeed: "",
-    weatherDescription: "",
+      temperature: "",
+      humidity: "",
+      windSpeed: "",
+      weatherDescription: "",
 
-    weatherConditions: "",
-    safetyCompliance: "",
-    safetySignage: "",
-    equipmentCondition: "",
-    workmanshipQuality: "",
-    siteHousekeeping: "",
-    communicationRating: "",
+      weatherConditions: "",
+      safetyCompliance: "",
+      safetySignage: "",
+      equipmentCondition: "",
+      workmanshipQuality: "",
+      siteHousekeeping: "",
+      communicationRating: "",
 
-    numWorkers: "",
-    workerAttendance: "",
-    workProgress: "",
-    scheduleCompliance: "",
-    materialAvailability: "",
-    maintenanceStatus: "",
-    specificationCompliance: "",
-    incidentsHazards: "",
-    stakeholderVisits: "",
+      numWorkers: "",
+      workerAttendance: "",
+      workProgress: "",
+      scheduleCompliance: "",
+      materialAvailability: "",
+      maintenanceStatus: "",
+      specificationCompliance: "",
+      incidentsHazards: "",
+      stakeholderVisits: "",
 
-    additionalComments: "",
-    inspectorSummary: "",
-    recommendations: "",
-    recommendationRating: "",
-    improvementAreas: "",
-    signatureDateTime: "",
+      additionalComments: "",
+      inspectorSummary: "",
+      recommendations: "",
+      recommendationRating: "",
+      improvementAreas: "",
+      signatureDateTime: now.toISOString().slice(0, 16),
 
-    weatherConditionsNote: "",
-    safetyComplianceNote: "",
-    safetySignageNote: "",
-    equipmentConditionNote: "",
-    workmanshipQualityNote: "",
-    siteHousekeepingNote: "",
-    communicationRatingNote: "",
+      weatherConditionsNote: "",
+      safetyComplianceNote: "",
+      safetySignageNote: "",
+      equipmentConditionNote: "",
+      workmanshipQualityNote: "",
+      siteHousekeepingNote: "",
+      communicationRatingNote: "",
 
-    flexibleModes: {
-      weatherConditions: "yesno",
-      safetyCompliance: "yesno",
-      safetySignage: "yesno",
-      equipmentCondition: "yesno",
-      workmanshipQuality: "yesno",
-      siteHousekeeping: "yesno",
-      communicationRating: "yesno",
-    },
+      flexibleModes: {
+        weatherConditions: "yesno",
+        safetyCompliance: "yesno",
+        safetySignage: "yesno",
+        equipmentCondition: "yesno",
+        workmanshipQuality: "yesno",
+        siteHousekeeping: "yesno",
+        communicationRating: "yesno",
+      },
 
-    // NEW fields
-    backgroundManual: "",
-    backgroundAuto: "",
-    fieldObservationText: "",
-  }));
+      // NEW fields
+      backgroundManual: "",
+      backgroundAuto: "",
+      fieldObservationText: "",
+    };
+    // Merge saved form from localStorage (if any) for immediate accurate progress
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = localStorage.getItem("nk_report_form");
+        if (raw) {
+          const saved = JSON.parse(raw);
+          if (saved && typeof saved === 'object') {
+            Object.assign(base, saved);
+            // ensure defaults for missing date/time fields
+            base.inspectionDate = base.inspectionDate || now.toISOString().split("T")[0];
+            base.startInspectionTime = base.startInspectionTime || "12:00";
+            base.signatureDateTime = base.signatureDateTime || now.toISOString().slice(0, 16);
+          }
+        }
+      }
+    } catch {}
+    return base as FormData;
+  });
 
   // per-section photos (DB-aware)
   const [sectionPhotos, setSectionPhotos] = useState<Record<string, DBUPhoto[]>>({
@@ -319,6 +339,7 @@ export default function Page() {
   const [pdfElapsed, setPdfElapsed] = useState(0);
   const [autoIncludeSiteMap, setAutoIncludeSiteMap] = useState<boolean>(true);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean>(false);
+  const [disclaimerDismissed, setDisclaimerDismissed] = useState<boolean>(false);
   
   async function captureStaticMapDataUrl(lat: number, lon: number): Promise<string> {
     const gkey = (process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY || "").trim();
@@ -443,6 +464,19 @@ export default function Page() {
       const v = localStorage.getItem("nk_disclaimer_accepted");
       setDisclaimerAccepted(!!v);
     } catch {}
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDisclaimerDismissed(true);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('keydown', onKey as any);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('keydown', onKey as any);
+      }
+    };
   }, []);
 
 
@@ -596,55 +630,44 @@ export default function Page() {
 
   /* ---------------- Derived ---------------- */
   const filledPercent = useMemo(() => {
+    // Count only fields the user can actually fill in this UI
     const ids = [
       "purposeOfFieldVisit",
       "reportId",
       "inspectorName",
-      "location",
-      "inspectionDate",
-      "temperature",
-      "humidity",
-      "windSpeed",
-      "weatherDescription",
-      "weatherConditions",
-      "safetyCompliance",
-      "safetySignage",
-      "numWorkers",
-      "workerAttendance",
-      "workProgress",
-      "scheduleCompliance",
-      "materialAvailability",
-      "equipmentCondition",
-      "maintenanceStatus",
-      "workmanshipQuality",
-      "specificationCompliance",
-      "incidentsHazards",
-      "siteHousekeeping",
-      "stakeholderVisits",
-      "additionalComments",
-      "inspectorSummary",
-      "recommendations",
-      "communicationRating",
-      "recommendationRating",
-      "improvementAreas",
-      "signatureDateTime",
+      "nameandAddressOfCompany",
       "clientName",
       "companyName",
       "contactPhone",
       "contactEmail",
-      "streetAddress",
+      "location",
       "city",
+      "state",
       "country",
       "zipCode",
+      "inspectionDate",
       "startInspectionTime",
+      // Assessment sections actually rendered:
+      "weatherConditions",
+      "safetyCompliance",
+      "safetySignage",
+      "workerAttendance",
+      "scheduleCompliance",
+      "materialAvailability",
+      // Notes & signature
+      "additionalComments",
+      "inspectorSummary",
+      "fieldObservationText",
+      "signatureDateTime",
     ] as (keyof FormData)[];
 
     let filled = 0;
     ids.forEach((k) => {
-      const v = form[k];
+      const v = (form as any)[k];
       if (typeof v === "string" && v.trim() !== "") filled++;
     });
-    return Math.round((filled / ids.length) * 100);
+    const pct = Math.round((filled / ids.length) * 100);
+    return Math.max(0, Math.min(100, pct));
   }, [form]);
  
   const updateField = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -907,9 +930,9 @@ export default function Page() {
             <nav className="flex-1 overflow-y-auto px-6 py-4">
               <div className="flex flex-col gap-1">
                 <Link href="/" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Home</Link>
-                <Link href="/report" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Report Tool</Link>
+                {/** Report Tool link removed on report page */}
                 <Link href="/account" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Account</Link>
-                <Link href="/pay" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Payments</Link>
+                {/** Payments link removed on report page */}
                 <Link href="/docs" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>My Documents</Link>
                 {user?.role === "admin" && (
                   <Link href="/admin" className="px-4 py-2.5 rounded-lg hover:bg-gray-100 text-gray-900 font-medium transition-colors" onClick={() => setMenuOpen(false)}>Admin Dashboard</Link>
@@ -939,9 +962,19 @@ export default function Page() {
 
       {/* Main Content with top padding to account for fixed header */}
       <main className="container mx-auto px-4 sm:px-6 py-8 pt-24">
-        {!disclaimerAccepted && (
+        {!disclaimerAccepted && !disclaimerDismissed && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-            <div className="bg-white max-w-3xl w-[92vw] md:w-[780px] rounded-xl shadow-xl p-6 overflow-auto max-h-[85vh]">
+            <div className="relative bg-white max-w-3xl w-[92vw] md:w-[780px] rounded-xl shadow-xl p-6 overflow-auto max-h-[85vh]">
+              <button
+                type="button"
+                aria-label="Close disclaimer"
+                className="absolute top-3 right-3 p-2 rounded-md hover:bg-gray-100 text-gray-500"
+                onClick={() => setDisclaimerDismissed(true)}
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
               <h3 className="text-lg font-semibold text-gray-900 mb-3">Disclaimer</h3>
               <div className="text-sm text-gray-800 space-y-3 leading-6">
                 <p>Disclaimer regarding using NINEKIWI.COM report generating tool:</p>
@@ -950,6 +983,13 @@ export default function Page() {
                 </p>
               </div>
               <div className="mt-5 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  onClick={() => setDisclaimerDismissed(true)}
+                >
+                  Close
+                </button>
                 <button
                   type="button"
                   className="px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -974,11 +1014,6 @@ export default function Page() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 {/* Purpose of Field Visit */}
                 <div className="md:col-span-2">
-                  {!form.reportId && (
-                    <p className="text-sm text-red-600 mb-3 bg-red-50 p-3 rounded-lg border border-red-200">
-                      ?? Enter a <strong>Report ID</strong> first to save photos to the database.
-                    </p>
-                  )}
                   <label className="block text-sm font-semibold text-gray-700 mb-2" htmlFor="purposeOfFieldVisit">
                     PURPOSE OF FIELD VISIT
                   </label>

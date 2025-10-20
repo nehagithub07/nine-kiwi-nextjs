@@ -82,7 +82,7 @@ const THEME_CSS = `
 }
 .nk-head-title {
   text-align: center;
-  font-size: 12pt;
+  font-size: 11pt;
   font-weight: 700;
   letter-spacing: 0.2px;
   color: #111 !important;
@@ -107,7 +107,7 @@ const THEME_CSS = `
 
 /* Section Titles (centered; no bottom border) */
 .nk-block-title {
-  font-size: 15pt;
+  font-size: 13pt;
   font-weight: 700;
   margin: 6mm 0 6mm 0;
   text-align: center;
@@ -197,7 +197,7 @@ const THEME_CSS = `
 
 /* TOC (simple, B&W) */
 .nk-toc { width: 100%; border-collapse: collapse; font-size: 11pt; margin-top: 4mm; }
-.nk-toc td { border: 0; padding: 8px 4px; border-bottom: 1px solid #eee; }
+.nk-toc td { border: 0; padding: 8px 4px; border-bottom: 0; }
 .nk-toc .nk-toc-num { width: 15mm; text-align: right; padding-right: 8mm; font-weight: 700; color: #000 !important; }
 `;
 
@@ -1257,7 +1257,7 @@ export async function generateFullReportDOCX(
     ["Current work progress", S((form as any).workProgress)],
     ["All safety protocols & PPE followed?", S((form as any).safetyCompliance)],
     ["Safety signage & access control in place?", S((form as any).safetySignage)],
-  ].filter(([,v]) => S(v));
+  ].filter(([,v]) => S(v)) as [string,string][];
   kv.forEach(([k,v]) => children.push(new Paragraph({ children: [ new TextRun({ text: `${k}: ${v}` }) ] })));
 
   // Optional site map

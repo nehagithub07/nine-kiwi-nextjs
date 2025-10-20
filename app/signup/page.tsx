@@ -41,9 +41,9 @@ export default function SignupPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "Signup failed");
-      // auto sign-in
+      // auto sign-in, then go home
       await signIn("credentials", { redirect: false, email, password });
-      router.push("/pay");
+      router.push("/");
     } catch (e: any) {
       setError(e?.message || "Signup failed");
     } finally {
@@ -84,7 +84,7 @@ export default function SignupPage() {
           {hasGoogle !== false && (
             <button
               type="button"
-              onClick={() => signIn("google", { callbackUrl: "/pay" })}
+              onClick={() => signIn("google", { callbackUrl: "/" })}
               className="w-full border-2 border-gray-300 hover:border-[#78c850] hover:bg-gray-50 px-4 py-3 rounded-xl flex items-center justify-center gap-3 transition-all duration-200 group"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
