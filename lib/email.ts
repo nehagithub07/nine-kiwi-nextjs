@@ -1,5 +1,6 @@
 // lib/email.ts
 import nodemailer from "nodemailer";
+import { getEnv, getEnvOr } from "@/lib/env";
 
 type InlineOpts = {
   cidLogoPath?: string;      // e.g., path.join(process.cwd(), "public", "logo.png")
@@ -23,20 +24,20 @@ export async function sendEmail(
 ) {
   // Prefer SMTP_* (GoDaddy), else EMAIL_*; last resort: Gmail service
   const host =
-    process.env.SMTP_HOST ||
-    process.env.EMAIL_HOST ||
+    getEnv("SMTP_HOST") ||
+    getEnv("EMAIL_HOST") ||
     "smtpout.secureserver.net";
   const portStr =
-    process.env.SMTP_PORT ||
-    process.env.EMAIL_PORT ||
+    getEnv("SMTP_PORT") ||
+    getEnv("EMAIL_PORT") ||
     "465";
   const port = Number(portStr);
   const user =
-    process.env.SMTP_USER ||
-    process.env.EMAIL_USER;
+    getEnv("SMTP_USER") ||
+    getEnv("EMAIL_USER");
   const pass =
-    process.env.SMTP_PASS ||
-    process.env.EMAIL_PASS;
+    getEnv("SMTP_PASS") ||
+    getEnv("EMAIL_PASS");
 
   try {
     const useSmtp = !!user && !!pass;
@@ -52,13 +53,13 @@ export async function sendEmail(
       : nodemailer.createTransport({
           service: "gmail",
           auth: {
-            user: process.env.EMAIL_USER,
-            pass: process.env.EMAIL_PASS,
+            user: getEnv("EMAIL_USER") || "",
+            pass: getEnv("EMAIL_PASS") || "",
           },
         });
 
     const fromHeader =
-      process.env.EMAIL_FROM ||
+      getEnv("EMAIL_FROM") ||
       (user ? `"Nine Kiwi" <${user}>` : "no-reply@ninekiwi.app");
 
     const attachments: NonNullable<InlineOpts["attachments"]> = [];

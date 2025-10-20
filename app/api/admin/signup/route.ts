@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import bcrypt from "bcryptjs";
+import { getEnv } from "@/lib/env";
 
 export async function POST(req: Request) {
   try {
@@ -18,10 +19,10 @@ export async function POST(req: Request) {
     await dbConnect();
     const adminExists = await User.exists({ role: "admin" });
     if (adminExists) {
-      if (!process.env.ADMIN_SIGNUP_TOKEN) {
+      if (!getEnv("ADMIN_SIGNUP_TOKEN")) {
         return NextResponse.json({ error: "Admin signup disabled. Set ADMIN_SIGNUP_TOKEN in env." }, { status: 403 });
       }
-      if (token !== process.env.ADMIN_SIGNUP_TOKEN) {
+      if (token !== getEnv("ADMIN_SIGNUP_TOKEN")) {
         return NextResponse.json({ error: "Invalid admin token" }, { status: 403 });
       }
     }
@@ -43,4 +44,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-

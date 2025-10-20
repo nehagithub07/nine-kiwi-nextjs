@@ -1,6 +1,7 @@
 // middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
+import { getEnv } from "@/lib/env";
 
 const PUBLIC_PATHS = new Set([
   "/",              // optional, keep homepage public
@@ -19,7 +20,7 @@ export async function middleware(req: NextRequest) {
   // Payment page: require login; redirect admins or already-paid users directly to report
   if (pathname === "/pay") {
     let token: any = null;
-    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    try { token = await getToken({ req, secret: getEnv("NEXTAUTH_SECRET") }); } catch {}
     if (!token) {
       const url = new URL("/login", req.url);
       url.searchParams.set("callbackUrl", "/pay");
@@ -51,7 +52,7 @@ export async function middleware(req: NextRequest) {
   // Access to report tool requires BOTH login and server-verified payment (admins bypass payment).
   if (pathname === "/report" || pathname.startsWith("/report/")) {
     let token: any = null;
-    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    try { token = await getToken({ req, secret: getEnv("NEXTAUTH_SECRET") }); } catch {}
     if (!token) {
       const url = new URL("/login", req.url);
       url.searchParams.set("callbackUrl", "/report");
@@ -81,14 +82,14 @@ export async function middleware(req: NextRequest) {
   // Require login for account page
   if (pathname === "/account" || pathname.startsWith("/account/")) {
     let token: any = null;
-    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    try { token = await getToken({ req, secret: getEnv("NEXTAUTH_SECRET") }); } catch {}
     if (!token) return NextResponse.redirect(new URL("/login?callbackUrl=" + encodeURIComponent(req.nextUrl.pathname), req.url));
   }
 
   // Example: protect /admin only
   if (pathname.startsWith("/admin")) {
     let token: any = null;
-    try { token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET }); } catch {}
+    try { token = await getToken({ req, secret: getEnv("NEXTAUTH_SECRET") }); } catch {}
     if (!token) return NextResponse.redirect(new URL("/admin/login", req.url));
     const role = (token as any).role || "user";
     if (role !== "admin") return NextResponse.redirect(new URL("/", req.url));

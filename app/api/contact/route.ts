@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
+import { getEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     if (!n || !e || !s || !m) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
-    const to = process.env.SUPPORT_EMAIL || process.env.EMAIL_USER || "";
+    const to = getEnv("SUPPORT_EMAIL") || getEnv("EMAIL_USER") || "";
     if (!to) return NextResponse.json({ error: "Email not configured" }, { status: 500 });
     const text = `From: ${n} <${e}>\nSubject: ${s}\n\n${m}`;
     const html = `<p><b>From:</b> ${n} &lt;${e}&gt;</p><p><b>Subject:</b> ${s}</p><p style="white-space:pre-line">${m}</p>`;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
+import { getEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,8 +9,8 @@ export async function POST(req: Request) {
   try {
     const { amount, currency = "INR", receipt, description } = await req.json();
 
-    const key_id = process.env.RAZORPAY_KEY_ID;
-    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    const key_id = getEnv("RAZORPAY_KEY_ID");
+    const key_secret = getEnv("RAZORPAY_KEY_SECRET");
     if (!key_id || !key_secret) {
       return NextResponse.json(
         { error: "Razorpay keys not configured on server" },

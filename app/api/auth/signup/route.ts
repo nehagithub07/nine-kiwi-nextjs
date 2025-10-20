@@ -31,7 +31,8 @@ export async function POST(req: Request) {
     (async () => {
       try {
         const subject = "Welcome to NineKiwi";
-        const text = `Hi ${name},\n\nYour NineKiwi account was created successfully. You can now sign in and use the tool.\n\nLogin: ${(process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || "") + "/login"}`;
+        const origin = new URL(req.url).origin;
+        const text = `Hi ${name},\n\nYour NineKiwi account was created successfully. You can now sign in and use the tool.\n\nLogin: ${origin + "/login"}`;
         await sendEmail(email, subject, text);
       } catch (e) { console.error("Signup welcome email failed", e); }
     })();

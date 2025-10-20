@@ -10,6 +10,7 @@ import { sendEmail } from "@/lib/email";
 import { headers } from "next/headers";
 import path from "path";
 import crypto from "crypto";
+import { getEnv } from "@/lib/env";
 
 /* ----------------- Minimal UA parsing ----------------- */
 function parseUserAgent(
@@ -120,16 +121,16 @@ function buildLoginEmailHTML(opts: {
 
   const supportEmail = opts.supportEmail || "contact@ninekiwi.com";
   const resetBase = `${opts.baseUrl.replace(/\/$/, "")}/reset-password`; const resetUrl = opts.resetToken ? `${resetBase}?token=${encodeURIComponent(opts.resetToken)}` : resetBase;
-  const adminSignature = process.env.ADMIN_SIGNATURE || "The NineKiwi Team";
+  const adminSignature = getEnv("ADMIN_SIGNATURE") || "The NineKiwi Team";
 
   // Prefer explicit PUBLIC_LOGO_URL; else derive from PUBLIC_BASE_URL/VERCEL_URL; else use CID.
   const publicBase =
-    process.env.PUBLIC_BASE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "");
+    getEnv("PUBLIC_BASE_URL") ||
+    (getEnv("VERCEL_URL") ? `https://${getEnv("VERCEL_URL")}` : "");
   const derivedLogo = publicBase ? `${publicBase.replace(/\/$/, "")}/logo.png` : "";
   const publicLogoUrl =
-    process.env.PUBLIC_LOGO_URL && process.env.PUBLIC_LOGO_URL.startsWith("http")
-      ? process.env.PUBLIC_LOGO_URL
+    getEnv("PUBLIC_LOGO_URL") && getEnv("PUBLIC_LOGO_URL")!.startsWith("http")
+      ? getEnv("PUBLIC_LOGO_URL")!
       : derivedLogo.startsWith("http")
       ? derivedLogo
       : "";
@@ -214,7 +215,7 @@ You are receiving this email because a login to your account was detected. If yo
 /* ----------------- NextAuth options ----------------- */
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
-  secret: process.env.NEXTAUTH_SECRET,
+  secret: getEnv("NEXTAUTH_SECRET"),
   providers: [
     CredentialsProvider({
       name: "Credentials",
@@ -226,14 +227,14 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
 
         // Admin override via env (avoid hardcoding in code)
-        const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+        const adminRaw = `${getEnv("ADMIN_EMAIL") || ""},${getEnv("ADMIN_EMAILS") || ""}`;
         const adminEmails = new Set(
           adminRaw
             .split(/[,;]+/)
             .map((s) => s.trim().toLowerCase())
             .filter(Boolean)
         );
-        const adminPass = (process.env.ADMIN_PASSWORD || "").trim();
+        const adminPass = (getEnv("ADMIN_PASSWORD") || "").trim();
         const emailInAdminList = adminEmails.has(String(credentials.email).trim().toLowerCase());
         const passwordMatches = String(credentials.password) === adminPass;
         if (emailInAdminList && passwordMatches) {
@@ -245,7 +246,7 @@ export const authOptions: NextAuthOptions = {
           } as any;
         }
 
-        if (!process.env.MONGODB_URI) return null;
+        if (!getEnv("MONGODB_URI")) return null;
         await dbConnect();
 
         const user = await User.findOne({ email: credentials.email }).lean();
@@ -265,18 +266,18 @@ export const authOptions: NextAuthOptions = {
         } as any;
       },
     }),
-    ...(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+    ...(getEnv("GOOGLE_CLIENT_ID") && getEnv("GOOGLE_CLIENT_SECRET")
       ? [
           GoogleProvider({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            clientId: getEnv("GOOGLE_CLIENT_ID")!,
+            clientSecret: getEnv("GOOGLE_CLIENT_SECRET")!,
           }),
         ]
       : []),
   ],
   callbacks: {
     async jwt({ token, user, account }) {
-      const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+      const adminRaw = `${getEnv("ADMIN_EMAIL") || ""},${getEnv("ADMIN_EMAILS") || ""}`;
       const adminEmails = new Set(
         adminRaw
           .split(/[,;]+/)
@@ -324,7 +325,7 @@ export const authOptions: NextAuthOptions = {
         let resetToken: string | null = null;
         // Generate a fresh reset token and store it for this user
         try {
-          if (user?.email && process.env.MONGODB_URI) {
+          if (user?.email && getEnv("MONGODB_URI")) {
             await dbConnect();
             const u = await User.findOne({ email: String(user.email).toLowerCase() });
             if (u) {
@@ -339,7 +340,7 @@ export const authOptions: NextAuthOptions = {
           console.warn("reset token generation skipped", tokenErr);
         }
         // Elevate admin by email for OAuth logins too
-        const adminRaw = `${process.env.ADMIN_EMAIL || ""},${process.env.ADMIN_EMAILS || ""}`;
+        const adminRaw = `${getEnv("ADMIN_EMAIL") || ""},${getEnv("ADMIN_EMAILS") || ""}`;
         const adminEmails = new Set(
           adminRaw
             .split(/[,;]+/)
@@ -373,8 +374,8 @@ export const authOptions: NextAuthOptions = {
 
         const baseUrl =
           process.env.NEXT_PUBLIC_APP_URL ||
-          process.env.PUBLIC_BASE_URL ||
-          (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+          getEnv("PUBLIC_BASE_URL") ||
+          (getEnv("VERCEL_URL") ? `https://${getEnv("VERCEL_URL")}` : "http://localhost:3000");
 
         const loginTime = new Date().toLocaleString("en-US", { hour12: true });
 
@@ -385,7 +386,7 @@ export const authOptions: NextAuthOptions = {
           browser,
           locationText,
           baseUrl,
-          supportEmail: process.env.SUPPORT_EMAIL || "contact@ninekiwi.com",
+          supportEmail: getEnv("SUPPORT_EMAIL") || "contact@ninekiwi.com",
           resetToken,
         });
 
@@ -419,6 +420,7 @@ export const authOptions: NextAuthOptions = {
   // You can add custom pages if desired:
   pages: { signIn: "/login" }
 };
+
 
 
 

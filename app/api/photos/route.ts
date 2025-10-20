@@ -4,6 +4,7 @@ import { Photo } from "@/models/Photo";
 import { Report } from "@/models/Report";
 import { Payment } from "@/models/Payment";
 import { cloudinary } from "@/lib/cloudinary";
+import { getEnv } from "@/lib/env";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -72,7 +73,7 @@ export async function POST(req: NextRequest) {
     ).lean();
 
     const uploadRes = await cloudinary.uploader.upload(data, {
-      folder: process.env.CLOUDINARY_FOLDER || "ninekiwi",
+      folder: getEnv("CLOUDINARY_FOLDER") || "ninekiwi",
       resource_type: "auto",
     });
 

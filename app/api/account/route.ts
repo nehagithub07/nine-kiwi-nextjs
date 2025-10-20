@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { cloudinary } from "@/lib/cloudinary";
+import { getEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ export async function PATCH(req: NextRequest) {
     let avatarUrl = doc.get("avatarUrl") as string | undefined;
     if (avatarData && avatarData.startsWith("data:")) {
       const upload = await cloudinary.uploader.upload(avatarData, {
-        folder: process.env.CLOUDINARY_FOLDER ? `${process.env.CLOUDINARY_FOLDER}/avatars` : "ninekiwi/avatars",
+        folder: getEnv("CLOUDINARY_FOLDER") ? `${getEnv("CLOUDINARY_FOLDER")}/avatars` : "ninekiwi/avatars",
         resource_type: "image",
         overwrite: true,
       });

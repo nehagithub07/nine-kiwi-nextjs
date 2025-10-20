@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { getEnv } from "@/lib/env";
 import { dbConnect } from "@/lib/mongodb";
 import { Payment } from "@/models/Payment";
 
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { orderId, paymentId, signature } = body || {};
-    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    const key_secret = getEnv("RAZORPAY_KEY_SECRET");
     if (!key_secret) {
       return NextResponse.json(
         { error: "Razorpay secret not configured" },
