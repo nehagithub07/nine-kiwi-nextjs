@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sendEmail } from "@/lib/email";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: NextRequest) {
   try {
     const { name, email, subject, message } = await req.json();
@@ -21,4 +24,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: e?.message || "Failed" }, { status: 500 });
   }
 }
-

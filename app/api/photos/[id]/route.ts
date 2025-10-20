@@ -7,6 +7,9 @@ import { cloudinary } from "@/lib/cloudinary";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }

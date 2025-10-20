@@ -7,6 +7,9 @@ import { Photo } from "@/models/Photo";
 import { cloudinary } from "@/lib/cloudinary";
 import { User } from "@/models/User";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;

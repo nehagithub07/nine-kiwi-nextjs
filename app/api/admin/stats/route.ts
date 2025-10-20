@@ -5,6 +5,9 @@ import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import { Report } from "@/models/Report";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(_req: NextRequest) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;

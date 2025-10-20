@@ -5,6 +5,9 @@ import { dbConnect } from "@/lib/mongodb";
 import { Report } from "@/models/Report";
 import { Payment } from "@/models/Payment";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ reportId: string }> }) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

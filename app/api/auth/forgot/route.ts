@@ -3,6 +3,9 @@ import { dbConnect } from "@/lib/mongodb";
 import { User } from "@/models/User";
 import crypto from "crypto";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
     const { email } = await req.json();
@@ -22,4 +25,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
-
