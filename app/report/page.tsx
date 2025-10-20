@@ -1044,7 +1044,7 @@ export default function Page() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* LEFT: FORM */}
           <section className="space-y-6">
-            <ProgressBar percent={filledPercent} />
+            <ProgressBar percent={mounted ? filledPercent : 0} />
 
             {/* Field Condition Summary Section */}
             <div className="form-section bg-white rounded-xl p-6 shadow-sm border border-gray-100 fade-in">
