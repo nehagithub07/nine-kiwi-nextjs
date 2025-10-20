@@ -67,7 +67,8 @@ const THEME_CSS = `
 .nk-page {
   width: 210mm;
   min-height: 297mm;
-  padding: 18mm 18mm 24mm 18mm;
+  /* slightly tighter top padding since header is smaller */
+  padding: 16mm 18mm 24mm 18mm;
   page-break-after: always;
   background: #fff;
   position: relative;
@@ -76,13 +77,15 @@ const THEME_CSS = `
 
 /* Header (simple) */
 .nk-header {
-  margin: 0 0 10mm 0;
-  padding-bottom: 4mm;
+  /* reduce vertical footprint of header */
+  margin: 0 0 6mm 0;
+  padding-bottom: 2.5mm;
   border-bottom: 1px solid #222;
 }
 .nk-head-title {
   text-align: center;
-  font-size: 11pt;
+  /* smaller title font */
+  font-size: 9.8pt;
   font-weight: 700;
   letter-spacing: 0.2px;
   color: #111 !important;
@@ -234,7 +237,7 @@ async function buildSiteMapFromForm(form: FormData): Promise<PhotoData | undefin
     if (!coords) return undefined;
     const gkey = (process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY || '').trim();
     const googleUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${coords.lat},${coords.lon}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:green|${coords.lat},${coords.lon}${gkey ? `&key=${gkey}` : ''}`;
-    const osmUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lon}&zoom=15&size=1200x600&markers=${coords.lat},${coords.lon},lightgreen-pushpin`;
+    const osmUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lon}&zoom=15&size=1600x800&markers=${coords.lat},${coords.lon},lightgreen-pushpin`;
 
     const tryUrl = async (u: string): Promise<string> => {
       const d = await fetchToDataURL(u).catch(() => '');
@@ -331,7 +334,7 @@ function optimizeCloudinaryUrl(url: string): string {
       // inject reasonable transformations for PDF rendering
       // auto format, economical quality, and max width
       const rest = m[1];
-      return url.replace(/\/image\/upload\//, "/image/upload/f_auto,q_auto:eco,w_1400/");
+      return url.replace(/\/image\/upload\//, "/image/upload/f_auto,q_auto:good,w_2000/");
     }
   } catch {}
   return url;
@@ -387,12 +390,14 @@ async function waitForImages(root: HTMLElement): Promise<void> {
 
 async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement> {
   const html2canvas = (await import("html2canvas")).default;
+  const dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1;
+  const scale = Math.min(2.5, Math.max(2, dpr * 1.2));
   return await html2canvas(node, {
-    scale: 1.25,
+    scale,
     backgroundColor: "#ffffff",
     useCORS: true,
     allowTaint: false,
-    imageTimeout: 10000,
+    imageTimeout: 15000,
     logging: false,
     windowWidth: Math.max(node.scrollWidth, node.clientWidth),
     windowHeight: Math.max(node.scrollHeight, node.clientHeight),
@@ -401,11 +406,14 @@ async function renderNodeToCanvas(node: HTMLElement): Promise<HTMLCanvasElement>
 
 function canvasToImg(canvas: HTMLCanvasElement): { data: string; type: "PNG" | "JPEG" } {
   try {
-    const jpg = canvas.toDataURL("image/jpeg", 0.8);
+    const png = canvas.toDataURL("image/png", 1.0);
+    if (png.startsWith("data:image/png")) return { data: png, type: "PNG" };
+  } catch {}
+  try {
+    const jpg = canvas.toDataURL("image/jpeg", 0.95);
     if (jpg.startsWith("data:image/jpeg")) return { data: jpg, type: "JPEG" };
   } catch {}
-  // fallback to PNG if JPEG fails for some reason
-  return { data: canvas.toDataURL("image/png", 1.0), type: "PNG" };
+  return { data: canvas.toDataURL(), type: "PNG" };
 }
 
 const todayStr = (d?: string) =>
@@ -841,7 +849,7 @@ function buildBodyHTML(
 
 /* ---------------------------- Rendering to PDF ---------------------------- */
 async function renderRootToPDF(root: HTMLElement, filename: string, mode: 'save' | 'open' = 'save'): Promise<void> {
-  const pdf: JsPDFType = new JsPDFClass("p", "mm", "a4");
+  const pdf: JsPDFType = new JsPDFClass({ orientation: "p", unit: "mm", format: "a4", putOnlyUsedFonts: true, precision: 16 } as any);
 
   const allPages = Array.from(root.querySelectorAll<HTMLElement>(".nk-page"));
   allPages.forEach((p, idx) => {
@@ -865,7 +873,7 @@ async function renderRootToPDF(root: HTMLElement, filename: string, mode: 'save'
 
     if (i > 0) pdf.addPage();
     const { data, type } = canvasToImg(canvas);
-    pdf.addImage(data, type, x, y, imgW, imgH, undefined, "FAST");
+    pdf.addImage(data, type, x, y, imgW, imgH, undefined, "SLOW");
   }
 
   if (mode === 'open') {

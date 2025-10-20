@@ -350,7 +350,7 @@ export default function Page() {
   async function captureStaticMapDataUrl(lat: number, lon: number): Promise<string> {
     const gkey = (process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY || "").trim();
     const googleUrl = `https://maps.googleapis.com/maps/api/staticmap?center=${lat},${lon}&zoom=15&size=1200x600&scale=2&maptype=roadmap&markers=color:green|${lat},${lon}${gkey ? `&key=${gkey}` : ""}`;
-    const osmUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=15&size=1200x600&markers=${lat},${lon},lightgreen-pushpin`;
+    const osmUrl = `https://staticmap.openstreetmap.de/staticmap.php?center=${lat},${lon}&zoom=15&size=1600x800&markers=${lat},${lon},lightgreen-pushpin`;
     try {
       const primary = gkey ? googleUrl : osmUrl;
       let res = await fetch(`/api/image-proxy?url=${encodeURIComponent(primary)}`, { cache: 'no-store' });

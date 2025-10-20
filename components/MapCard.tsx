@@ -49,9 +49,9 @@ export default function MapCard({ address, onCoords, className }: Props) {
     if (!coords) return "";
     const gkey = process.env.NEXT_PUBLIC_GOOGLE_STATIC_MAPS_KEY?.trim();
     if (gkey) {
-      return `https://maps.googleapis.com/maps/api/staticmap?center=${coords.lat},${coords.lon}&zoom=15&size=800x400&scale=2&maptype=roadmap&markers=color:green|${coords.lat},${coords.lon}&key=${gkey}`;
+      return `https://maps.googleapis.com/maps/api/staticmap?center=${coords.lat},${coords.lon}&zoom=15&size=1000x500&scale=2&maptype=roadmap&markers=color:green|${coords.lat},${coords.lon}&key=${gkey}`;
     }
-    return `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lon}&zoom=15&size=800x400&markers=${coords.lat},${coords.lon},lightgreen-pushpin`;
+    return `https://staticmap.openstreetmap.de/staticmap.php?center=${coords.lat},${coords.lon}&zoom=15&size=1000x500&markers=${coords.lat},${coords.lon},lightgreen-pushpin`;
   }, [coords]);
 
   if (!address?.trim()) return null;

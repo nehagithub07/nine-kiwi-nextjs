@@ -12,16 +12,33 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.email) return NextResponse.json({ user: null }, { status: 401 });
-  await dbConnect();
-  const doc = await User.findOne({ email: session.user.email }).lean();
-  if (!doc) return NextResponse.json({ user: null }, { status: 404 });
+  // Try DB for full profile; otherwise fall back to session info
+  try {
+    if (getEnv("MONGODB_URI")) {
+      await dbConnect();
+      const doc = await User.findOne({ email: session.user.email }).lean();
+      if (doc) {
+        return NextResponse.json({
+          user: {
+            id: String(doc._id),
+            name: (doc as any).name || session.user.name || "",
+            email: doc.email,
+            role: (doc as any).role || (session.user as any).role || "user",
+            avatarUrl: (doc as any).avatarUrl || "",
+          },
+        });
+      }
+    }
+  } catch {}
+
+  // Fallback: return minimal user from session (covers env-admin or missing DB)
   return NextResponse.json({
     user: {
-      id: String(doc._id),
-      name: doc.name,
-      email: doc.email,
-      role: doc.role,
-      avatarUrl: (doc as any).avatarUrl || "",
+      id: String((session.user as any).id || ""),
+      name: session.user.name || "",
+      email: session.user.email,
+      role: (session.user as any).role || "user",
+      avatarUrl: "",
     },
   });
 }

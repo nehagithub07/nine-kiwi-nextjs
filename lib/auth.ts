@@ -351,25 +351,33 @@ export const authOptions: NextAuthOptions = {
           (user as any).role = "admin";
         }
 
-        const h = await headers();
-        const xf = h.get("x-forwarded-for");
-        const xr = h.get("x-real-ip");
-        const cf = h.get("cf-connecting-ip");
-        const remote = h.get("x-client-ip");
+        // Default UA/IP info; do not fail email if headers() is unavailable
+        let browser = "Unknown";
+        let device = "Unknown";
+        let locationText = "Unknown";
+        try {
+          const h = await headers();
+          const xf = h.get("x-forwarded-for");
+          const xr = h.get("x-real-ip");
+          const cf = h.get("cf-connecting-ip");
+          const remote = h.get("x-client-ip");
 
-        const ua = h.get("user-agent");
-        const { browser, device } = parseUserAgent(ua);
+          const ua = h.get("user-agent");
+          const parsed = parseUserAgent(ua);
+          browser = parsed.browser;
+          device = parsed.device;
 
-        const ip =
-          extractPublicIP(xf, cf) ||
-          extractPublicIP(xr, cf) ||
-          extractPublicIP(remote, cf) ||
-          cf ||
-          null;
+          const ip =
+            extractPublicIP(xf, cf) ||
+            extractPublicIP(xr, cf) ||
+            extractPublicIP(remote, cf) ||
+            cf ||
+            null;
 
-        const geo = ip ? await geoFromIP(ip) : ({} as any);
-        const parts = [geo?.city, geo?.country].filter(Boolean) as string[];
-        const locationText = parts.length ? (ip ? `${parts.join(", ")} / ${ip}` : `${parts.join(", ")}`) : (ip || "Unknown");
+          const geo = ip ? await geoFromIP(ip) : ({} as any);
+          const parts = [geo?.city, geo?.country].filter(Boolean) as string[];
+          locationText = parts.length ? (ip ? `${parts.join(", ")} / ${ip}` : `${parts.join(", ")}`) : (ip || "Unknown");
+        } catch {}
 
 
         const baseUrl =
