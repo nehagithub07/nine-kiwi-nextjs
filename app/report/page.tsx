@@ -4,6 +4,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { signOut } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 
 import ProgressBar from "@/components/ProgressBar";
@@ -207,8 +208,11 @@ export default function Page() {
   }, []);
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
+    try {
+      await signOut({ callbackUrl: "/login" });
+    } catch {
+      window.location.href = "/login";
+    }
   }
 
   /* ---------------- State ---------------- */
@@ -337,6 +341,7 @@ export default function Page() {
   const [includeMapInPdf, setIncludeMapInPdf] = useState<boolean>(false);
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfElapsed, setPdfElapsed] = useState(0);
+  const [exportMode, setExportMode] = useState<null | 'pdf' | 'docx'>(null);
   const [autoIncludeSiteMap, setAutoIncludeSiteMap] = useState<boolean>(true);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState<boolean>(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState<boolean>(false);
@@ -571,6 +576,39 @@ export default function Page() {
     })(); 
   }, [autoIncludeSiteMap, form.lat, form.lon]);
 
+  // If lat/lon are not available, try geocoding the address to include a site map automatically
+  useEffect(() => {
+    if (!autoIncludeSiteMap) return;
+    if (mapForPdfUrl) return;
+    const hasCoords = Number.isFinite(Number(form.lat)) && Number.isFinite(Number(form.lon));
+    if (hasCoords) return;
+    const addr = [
+      form.streetAddress,
+      [form.city, form.state].filter(Boolean).join(", "),
+      [form.country, form.zipCode].filter(Boolean).join(" "),
+    ]
+      .filter(Boolean)
+      .map((s) => String(s).trim())
+      .filter(Boolean)
+      .join(", ") || String(form.location || "").trim();
+    if (!addr) return;
+    (async () => {
+      try {
+        const r = await fetch(`/api/geocode?q=${encodeURIComponent(addr)}`, { cache: 'no-store' });
+        const j = await r.json().catch(() => null as any);
+        const lat = Number(j?.lat), lon = Number(j?.lon);
+        if (j?.success && Number.isFinite(lat) && Number.isFinite(lon)) {
+          setForm((f) => ({ ...f, lat: String(lat), lon: String(lon) }));
+          const dataUrl = await captureStaticMapDataUrl(lat, lon);
+          if (dataUrl) {
+            setMapForPdfUrl(dataUrl);
+            setIncludeMapInPdf(true);
+          }
+        }
+      } catch {}
+    })();
+  }, [autoIncludeSiteMap, mapForPdfUrl, form.streetAddress, form.city, form.state, form.country, form.zipCode, form.location]);
+
   useEffect(() => {
     const now = new Date();
     setForm((f) => ({
@@ -620,13 +658,13 @@ export default function Page() {
   }, [sectionPhotos]);
 
   const summaryPhotosU = useMemo(() => {
-    const all = [
-      ...(sectionPhotos.background || []),
-      ...(sectionPhotos.evidence || []),
-    ];
+    const bg = adaptPhotos((sectionPhotos.background || []) as any);
+    const fo = adaptPhotos((sectionPhotos.fieldObservation || []) as any);
+    const add = adaptPhotos((sectionPhotos.additional || []) as any);
+    const all = [...bg, ...fo, ...add];
     const selected = all.filter((p: any) => (p as any)?.includeInSummary);
     return selected.length ? selected : all;
-  }, [sectionPhotos.background, sectionPhotos.evidence]);
+  }, [sectionPhotos.background, sectionPhotos.fieldObservation, sectionPhotos.additional]);
 
   /* ---------------- Derived ---------------- */
   const filledPercent = useMemo(() => {
@@ -1669,7 +1707,7 @@ export default function Page() {
 
       {/* PDF Generation Overlay */}
       {pdfGenerating && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm no-print" role="dialog" aria-modal="true" aria-label="Generating PDF">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/70 backdrop-blur-sm no-print" role="dialog" aria-modal="true" aria-label={exportMode === "docx" ? "Preparing Word" : "Generating PDF"}>
           <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-6 w-[90vw] max-w-md text-center">
             <div className="mx-auto h-12 w-12 mb-4 text-[#78c850]">
               <svg className="animate-spin h-12 w-12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1677,7 +1715,7 @@ export default function Page() {
                 <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
               </svg>
             </div>
-            <div className="text-lg font-semibold text-gray-900">Generating PDF report</div>
+            <div className="text-lg font-semibold text-gray-900">${exportMode === "docx" ? "Preparing Word report" : "Generating PDF report"}</div>
             <div className="mt-1 text-sm text-gray-600">Rendering photos and layout. Please don’t close this tab.</div>
             <div className="mt-3 text-sm font-medium text-gray-700">Elapsed: {pdfElapsed}s</div>
           </div>
@@ -1686,6 +1724,9 @@ export default function Page() {
     </div>
   );
 }
+
+
+
 
 
 

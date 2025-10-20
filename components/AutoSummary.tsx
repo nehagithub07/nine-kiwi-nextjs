@@ -217,7 +217,7 @@ export default function AutoSummary({ form, photos }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden relative">
       {/* Header Section */}
       <div className="border-b-2 border-kiwi-dark bg-gradient-to-r from-kiwi-dark/5 to-transparent px-6 py-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -406,6 +406,21 @@ export default function AutoSummary({ form, photos }: Props) {
           </div>
         )}
       </div>
+
+      {downloading && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 backdrop-blur-sm" role="status" aria-label={downloading === 'word' ? 'Preparing Word' : 'Generating PDF'}>
+          <div className="bg-white border border-gray-200 rounded-xl shadow-xl p-5 w-[90%] max-w-sm text-center">
+            <div className="mx-auto h-10 w-10 mb-3 text-[#78c850]">
+              <svg className="animate-spin h-10 w-10" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+              </svg>
+            </div>
+            <div className="text-base font-semibold text-gray-900">{downloading === 'word' ? 'Preparing Word summary' : 'Generating PDF summary'}</div>
+            <div className="mt-1 text-sm text-gray-600">Elapsed: {elapsed}s</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
