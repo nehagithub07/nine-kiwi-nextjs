@@ -1,10 +1,7 @@
-"use client";
+﻿"use client";
 
 import React, { useMemo } from "react";
-<<<<<<< HEAD
 import { formatTime12 } from "@/lib/time";
-=======
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 import MapCard from "./MapCard";
 
 /* ===== Types (keep aligned with page.tsx) ===== */
@@ -77,16 +74,7 @@ function has(v: unknown): boolean {
 function formatTime(time?: string): string {
   const t = S(time);
   if (!t) return "";
-<<<<<<< HEAD
   return formatTime12(t);
-=======
-  try {
-    const d = new Date(`2000-01-01T${t}`);
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  } catch {
-    return t;
-  }
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 }
 
 /* ===== Status Badge ===== */
@@ -289,7 +277,6 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6 pb-6 border-b-2 border-kiwi-dark/20">
-<<<<<<< HEAD
           <GridLine label="Report ID (If any)" value={S(form?.reportId)} />
           <GridLine label="Name of Inspector" value={S(form?.inspectorName)} />
           <GridLine label="Inspection Date" value={S(form?.inspectionDate)} />
@@ -303,21 +290,6 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
           <Line label="Phone Number of Inspection Company" value={S(form?.contactPhone)} />
           <Line label="Email of Inspection Company" value={S(form?.contactEmail)} />
           <Line label="Address of Inspection Property" value={S(form?.location)} />
-=======
-          <GridLine label="Report ID" value={S(form?.reportId)} />
-          <GridLine label="Inspector Name" value={S(form?.inspectorName)} />
-          <GridLine label="Inspection Date" value={S(form?.inspectionDate)} />
-          <GridLine label="Start Time" value={observationTime} />
-        </div>
-
-        <dl className="space-y-0">
-          <Line label="Name and Address of Inspection Company" value={S(form?.nameandAddressOfCompany)} />
-          <Line label="Client / Owner Name" value={S(form?.clientName)} />
-          <Line label="Company Name" value={S(form?.companyName)} />
-          <Line label="Phone Number of Inspection Company" value={S(form?.contactPhone)} />
-          <Line label="Email of Inspection Company" value={S(form?.contactEmail)} />
-          <Line label="Inspection Property Address" value={S(form?.location)} />
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
         </dl>
       </Section>
 
@@ -333,7 +305,7 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
           {hasWeatherData && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               {has(form?.temperature) && (
-                <GridLine label="Temperature" value={`${form?.temperature} °C`} />
+                <GridLine label="Temperature" value={`${form?.temperature} Â°C`} />
               )}
               {has(form?.humidity) && (
                 <GridLine label="Humidity" value={`${form?.humidity} %`} />
@@ -399,9 +371,7 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
         </Section>
       )}
 
-<<<<<<< HEAD
       {/* Personnel & Work Progress section removed as requested */}
-=======
       {/* ===== Personnel & Work Progress ===== */}
       {(has(form?.workerAttendance) || has(form?.scheduleCompliance) || has(form?.materialAvailability) || (buckets.work?.length ?? 0) > 0) && (
         <Section title="Personnel & Work Progress">
@@ -415,7 +385,6 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
           )}
         </Section>
       )}
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 
       {/* ===== Field Observation ===== */}
       {(has(form?.fieldObservationText) || (buckets.fieldObservation?.length ?? 0) > 0) && (
@@ -478,7 +447,7 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
                 {S(form?.inspectorName) || "Inspector"}
               </div>
               <div className="text-sm text-gray-600">
-                Signed on: {S(form?.signatureDateTime) || "—"}
+                Signed on: {S(form?.signatureDateTime) || "â€”"}
               </div>
             </div>
           </div>
@@ -509,3 +478,4 @@ export default function ReportPreview({ form, sectionPhotos, signatureData }: Re
     </div>
   );
 }
+

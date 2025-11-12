@@ -3,10 +3,7 @@
 
 import type { jsPDF as JsPDFType } from "jspdf";
 import { jsPDF as JsPDFClass } from "jspdf";
-<<<<<<< HEAD
 import { formatTime12 as formatTime12Stable } from "@/lib/time";
-=======
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 
 export interface PhotoData {
   name: string;
@@ -65,11 +62,7 @@ const THEME_CSS = `
 .nk-root, .nk-root * {
   box-sizing: border-box !important;
   color: #111 !important;
-<<<<<<< HEAD
   font-family: Calibri, Arial, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
-=======
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif !important;
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .nk-page {
@@ -89,11 +82,8 @@ const THEME_CSS = `
   margin: 0 0 6mm 0;
   padding-bottom: 2.5mm;
   border-bottom: 1px solid #222;
-<<<<<<< HEAD
   position: relative;
   z-index: 2;
-=======
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 }
 .nk-head-title {
   text-align: center;
@@ -123,11 +113,7 @@ const THEME_CSS = `
 
 /* Section Titles (centered; no bottom border) */
 .nk-block-title {
-<<<<<<< HEAD
   font-size: 14pt;
-=======
-  font-size: 13pt;
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
   font-weight: 700;
   margin: 6mm 0 6mm 0;
   text-align: center;
@@ -147,7 +133,6 @@ const THEME_CSS = `
 
 .nk-p {
   font-size: 11pt;
-<<<<<<< HEAD
   line-height: 1.5;
   text-align: justify;
   margin-bottom: 3mm;
@@ -158,12 +143,6 @@ ul, ol { margin: 0 0 3mm 4mm; padding: 0 0 0 4mm; }
 li { margin: 0 0 1.5mm 0; font-size: 11pt; line-height: 1.5; }
 strong { font-weight: 700; }
 em { font-style: italic; }
-=======
-  line-height: 1.65;
-  text-align: justify;
-  margin-bottom: 3mm;
-}
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 
 /* Tables (minimal Word look) */
 .nk-table {
@@ -172,15 +151,7 @@ em { font-style: italic; }
   font-size: 10.5pt;
   margin: 2mm 0 1mm 0;
 }
-<<<<<<< HEAD
 .nk-table th, .nk-table td { border: 0; padding: 4px 2px; vertical-align: top; }
-=======
-.nk-table th, .nk-table td {
-  border: 0;
-  padding: 5px 0;
-  vertical-align: top;
-}
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 .nk-table td:first-child {
   width: 38%;
   font-weight: 700;
@@ -195,11 +166,7 @@ em { font-style: italic; }
   font-weight: 700;
   text-transform: uppercase;
   border-bottom: 1px solid #000;
-<<<<<<< HEAD
   padding: 2px 0 6px 0;
-=======
-  padding: 4px 0 6px 0;
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 }
 .nk-table.kv tbody td { padding: 6px 0; }
 .nk-table.kv tbody td:first-child { width: 46%; }
@@ -226,17 +193,11 @@ em { font-style: italic; }
 /* Photo layouts (edge-to-edge, large) */
 .nk-photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; margin-top: 2mm; }
 .nk-photo-grid.single { grid-template-columns: 1fr; }
-<<<<<<< HEAD
 .nk-photo-card { page-break-inside: avoid; margin-bottom: 6mm; background: transparent; border: 0; border-radius: 0; position: relative; }
 .nk-photo-img-wrap { background: transparent; min-height: auto; max-height: 150mm; width: 100%; display: flex; align-items: center; justify-content: center; padding: 0; border-bottom: 0; position: relative; z-index: 1; }
 .nk-photo-img { display: block !important; max-width: 100% !important; height: auto !important; max-height: 150mm !important; object-fit: contain !important; }
 .nk-block-title, .nk-callout { position: relative; z-index: 2; page-break-inside: avoid; }
 img { max-width: 100% !important; height: auto !important; }
-=======
-.nk-photo-card { page-break-inside: avoid; margin-bottom: 6mm; background: transparent; border: 0; border-radius: 0; }
-.nk-photo-img-wrap { background: transparent; min-height: auto; max-height: 150mm; width: 100%; display: flex; align-items: center; justify-content: center; padding: 0; border-bottom: 0; }
-.nk-photo-img { display: block !important; max-width: 100% !important; max-height: 100% !important; width: auto !important; height: auto !important; object-fit: contain !important; }
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 .nk-caption { margin: 3mm 0 0 0; padding: 0; font-size: 10pt; font-weight: 600; text-align: center; line-height: 1.4; color: #000 !important; }
 .nk-desc { margin: 2mm 0 0 0; padding: 0; font-size: 9.5pt; line-height: 1.5; text-align: justify; background: transparent; color: #333 !important; border: 0; word-break: break-word; }
 
@@ -304,19 +265,7 @@ async function buildSiteMapFromForm(form: FormData): Promise<PhotoData | undefin
   } catch { return undefined; }
 }
 
-function formatTime12(t?: string): string {
-<<<<<<< HEAD
-  return formatTime12Stable(t);
-=======
-  if (!t) return "";
-  try {
-    const d = new Date(`2000-01-01T${t}`);
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
-  } catch {
-    return t;
-  }
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
-}
+function formatTime12(t?: string): string { return formatTime12Stable(t); }
 
 const joinAddress = (form: FormData): string => {
   const parts = [
@@ -422,7 +371,6 @@ async function waitForImages(root: HTMLElement): Promise<void> {
     imgs.map(
       (img) =>
         new Promise<void>(async (resolve) => {
-<<<<<<< HEAD
           const toData = async (u: string) => {
             const d = await fetchToDataURL(u).catch(() => "");
             if (d && d.startsWith("data:")) img.src = d;
@@ -435,7 +383,6 @@ async function waitForImages(root: HTMLElement): Promise<void> {
             const src = img.getAttribute("src") || "";
             if (/^https?:/i.test(src)) await toData(src);
           }
-          // If the data URL is a format Word can't render (e.g., webp/avif), convert to JPEG
           const ensureWordFriendly = async () => {
             try {
               const srcNow = img.getAttribute("src") || "";
@@ -463,25 +410,7 @@ async function waitForImages(root: HTMLElement): Promise<void> {
             } catch {}
           };
           await ensureWordFriendly();
-          // If already loaded
           if (img.complete && img.naturalHeight > 0) {
-            // Ensure width/height attributes for better DOCX conversion
-            try {
-              const maxPageWidthPx = 700; // ~7.3in at ~96 dpi; fits A4 with margins
-              const nw = img.naturalWidth || 1;
-              const nh = img.naturalHeight || 1;
-              const scale = nw > maxPageWidthPx ? maxPageWidthPx / nw : 1;
-              const w = Math.max(1, Math.round(nw * scale));
-              const h = Math.max(1, Math.round(nh * scale));
-              img.setAttribute("width", String(w));
-              img.setAttribute("height", String(h));
-              img.style.width = `${w}px`;
-              img.style.height = `${h}px`;
-            } catch {}
-            return resolve();
-          }
-          const done = () => {
-            // After load/error, set attributes if possible
             try {
               const maxPageWidthPx = 700;
               const nw = img.naturalWidth || 1;
@@ -491,27 +420,29 @@ async function waitForImages(root: HTMLElement): Promise<void> {
               const h = Math.max(1, Math.round(nh * scale));
               img.setAttribute("width", String(w));
               img.setAttribute("height", String(h));
-              img.style.width = `${w}px`;
-              img.style.height = `${h}px`;
+              (img.style as any).width = `${w}px`;
+              (img.style as any).height = `${h}px`;
+            } catch {}
+            return resolve();
+          }
+          const done = () => {
+            try {
+              const maxPageWidthPx = 700;
+              const nw = img.naturalWidth || 1;
+              const nh = img.naturalHeight || 1;
+              const scale = nw > maxPageWidthPx ? maxPageWidthPx / nw : 1;
+              const w = Math.max(1, Math.round(nw * scale));
+              const h = Math.max(1, Math.round(nh * scale));
+              img.setAttribute("width", String(w));
+              img.setAttribute("height", String(h));
+              (img.style as any).width = `${w}px`;
+              (img.style as any).height = `${h}px`;
             } catch {}
             resolve();
           };
           const to = setTimeout(done, 10000);
           img.onload = () => { clearTimeout(to); done(); };
           img.onerror = () => { clearTimeout(to); done(); };
-=======
-          const dataSrc = img.getAttribute("data-image-src");
-          if (dataSrc) {
-            const data = await fetchToDataURL(dataSrc);
-            if (data) img.src = data;
-            img.removeAttribute("data-image-src");
-          }
-          if (img.complete && img.naturalHeight > 0) return resolve();
-          const done = () => resolve();
-          const to = setTimeout(done, 9000);
-          img.onload = () => { clearTimeout(to); resolve(); };
-          img.onerror = () => { clearTimeout(to); resolve(); };
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
         })
     )
   );
@@ -709,34 +640,18 @@ function obsTableImage2(form: FormData, buckets: Record<string, PhotoData[]>): s
 
   const rows: Array<[string, string]> = [
     ["PURPOSE OF FIELD VISIT", Sx((form as any).purposeOfFieldVisit)],
-<<<<<<< HEAD
     ["Report ID (If any)", Sx(form.reportId)],
     ["Name of Inspector", Sx(form.inspectorName)],
     ["Address of Inspection Company", Sx(form.nameandAddressOfCompany)],
     ["Client / Owner Name", Sx(form.clientName)],
     ["Inspection Company Name", Sx(form.companyName)],
-=======
-    ["Report ID", Sx(form.reportId)],
-    ["Name of Field Inspector", Sx(form.inspectorName)],
-    ["Name and Address of Inspection Company", Sx(form.nameandAddressOfCompany)],
-    ["Client / Owner Name", Sx(form.clientName)],
-    ["Company Name", Sx(form.companyName)],
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
     ["Phone Number of Inspection Company", Sx(form.contactPhone)],
     ["Email of Inspection Company", Sx(form.contactEmail)],
     ["Date of Inspection", todayStr(form.inspectionDate)],
     ["Start Time of Inspection", formatTime12(form.startInspectionTime)],
-<<<<<<< HEAD
     ["Address of Inspection Property", addr],
     ["Weather Conditions", weather],
     // Removed workerAttendance/scheduleCompliance/materialAvailability to match UI removal
-=======
-    ["Inspection Property Address", addr],
-    ["Weather Conditions", weather],
-    ["All workers present & on time?", Sx(form.workerAttendance)],
-    ["Progress vs schedule", Sx(form.scheduleCompliance)],
-    ["Materials available & usable?", Sx(form.materialAvailability)],
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
     ["Current work progress", Sx(form.workProgress)],
     ["Equipment Photos Attached", (buckets?.equipment?.length ?? 0) > 0 ? String(buckets.equipment.length) : ""],
     ["All safety protocols & PPE followed?", Sx(form.safetyCompliance)],
@@ -1037,11 +952,7 @@ export async function generateFullReportPDF(
   sectionPhotos: Record<string, PhotoData[]>,
   signatureData: string | null,
   siteMap?: PhotoData,
-<<<<<<< HEAD
   options?: { mode?: 'save' | 'open'; includeSiteMap?: boolean }
-=======
-  options?: { mode?: 'save' | 'open' }
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
@@ -1071,11 +982,7 @@ export async function generateFullReportPDF(
   ].filter(Boolean).join("");
 
   const formPlus = signatureData ? { ...form, signatureData } : form;
-<<<<<<< HEAD
   const siteMapFinal = options?.includeSiteMap === false ? undefined : (siteMap || await buildSiteMapFromForm(formPlus));
-=======
-  const siteMapFinal = siteMap || await buildSiteMapFromForm(formPlus);
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 
   const html =
     coverPage(formPlus) +
@@ -1353,7 +1260,6 @@ export async function generateFullReportDOCX(
   form: FormData,
   sectionPhotos: Record<string, PhotoData[]>,
   signatureData: string | null,
-<<<<<<< HEAD
   siteMap?: PhotoData,
   options?: { includeSiteMap?: boolean }
 ): Promise<void> {
@@ -1406,16 +1312,10 @@ export async function generateFullReportDOCX(
     });
     return g.htmlDocx && typeof g.htmlDocx.asBlob === 'function' ? g.htmlDocx : null;
   }
-=======
-  siteMap?: PhotoData
-): Promise<void> {
-  const { Document, Packer, Paragraph, HeadingLevel, TextRun, ImageRun } = await import("docx");
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
   //@ts-ignore
   const fs_mod = await import("file-saver");
   const saveAs = (fs_mod as any).saveAs || (fs_mod as any).default;
 
-<<<<<<< HEAD
   const toc = [
     "Site Location and Field Condition Summary",
     "Background",
@@ -1482,133 +1382,6 @@ export async function generateFullReportDOCX(
   } finally {
     cleanup();
   }
-=======
-  function dataUrlToUint8Array(dataUrl: string): Uint8Array {
-    try {
-      const base64 = dataUrl.split(",")[1];
-      const binary = atob(base64);
-      const len = binary.length;
-      const bytes = new Uint8Array(len);
-      for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes;
-    } catch { return new Uint8Array(); }
-  }
-
-  const children: any[] = [];
-  // Cover
-  // Cover
-  const coverTitle = S((form as any).purposeOfFieldVisit) || "CONSTRUCTION PROGRESS REPORT";
-  const locLine = [S(form.companyName), S(form.location)].filter(Boolean).join(" | ");
-  if (locLine) children.push(new Paragraph({ text: locLine, heading: HeadingLevel.HEADING_2 }));
-  children.push(new Paragraph({ text: `Report Date: ${todayStr(form.inspectionDate)}` }));
-
-  // TOC (no page refs)
-  children.push(new Paragraph({ text: "Table of Contents", heading: HeadingLevel.HEADING_1 }));
-  ["1. Site Location and Field Condition Summary","2. Background","3. Field Observation","Additional Images","Inspection Support Equipment (if any)","4. Conclusion"].forEach((t)=>{
-    children.push(new Paragraph({ children: [ new TextRun({ text: t }) ] }));
-  });
-
-  // Disclaimer
-  const compName = S(form.companyName) || "INSPECTION COMPANY";
-  children.push(new Paragraph({ text: "Disclaimer", heading: HeadingLevel.HEADING_1 }));
-  children.push(new Paragraph({ children: [ new TextRun({ text: `This Report is intended solely for use by the Client in accordance with ${compName}'s contract with the Client. While the Report may be provided to applicable authorities having jurisdiction and others for whom the Client is responsible, ${compName} does not warrant the services to any third party. The report may not be relied upon by any other party without the express written consent of ${compName}.` }) ] }));
-
-  // Section 1: Summary key-values similar to obsTableImage2
-  children.push(new Paragraph({ text: "1. Site Location and Field Condition Summary", heading: HeadingLevel.HEADING_1 }));
-  const addr = [form.streetAddress, [form.city, form.state].filter(Boolean).join(", "), [form.country, form.zipCode].filter(Boolean).join(" ")].filter(Boolean).map(S).filter(Boolean).join(", ") || S(form.location);
-  const weatherBits: string[] = [];
-  if (S((form as any).temperature)) weatherBits.push(`${S((form as any).temperature)} deg C`);
-  if (S((form as any).humidity)) weatherBits.push(`Humidity ${S((form as any).humidity)}%`);
-  if (S((form as any).windSpeed)) weatherBits.push(`Wind ${S((form as any).windSpeed)} km/h`);
-  const kv: Array<[string,string]> = [
-    ["PURPOSE OF FIELD VISIT", S((form as any).purposeOfFieldVisit)],
-    ["Report ID", S((form as any).reportId)],
-    ["Name of Field Inspector", S((form as any).inspectorName)],
-    ["Name and Address of Inspection Company", S((form as any).nameandAddressOfCompany)],
-    ["Client / Owner Name", S((form as any).clientName)],
-    ["Company Name", S((form as any).companyName)],
-    ["Phone Number of Inspection Company", S((form as any).contactPhone)],
-    ["Email of Inspection Company", S((form as any).contactEmail)],
-    ["Date of Inspection", todayStr(form.inspectionDate)],
-    ["Start Time of Inspection", S((form as any).startInspectionTime)],
-    ["Inspection Property Address", addr],
-    ["Weather Conditions", weatherBits.join(" | ")],
-    ["All workers present & on time?", S((form as any).workerAttendance)],
-    ["Progress vs schedule", S((form as any).scheduleCompliance)],
-    ["Materials available & usable?", S((form as any).materialAvailability)],
-    ["Current work progress", S((form as any).workProgress)],
-    ["All safety protocols & PPE followed?", S((form as any).safetyCompliance)],
-    ["Safety signage & access control in place?", S((form as any).safetySignage)],
-  ].filter(([,v]) => S(v)) as [string,string][];
-  kv.forEach(([k,v]) => children.push(new Paragraph({ children: [ new TextRun({ text: `${k}: ${v}` }) ] })));
-
-  // Optional site map
-  if (siteMap && siteMap.data) {
-    let src = siteMap.data;
-    if (src.startsWith("http")) { try { const d = await fetchToDataURL(src); if (d) src = d; } catch {} }
-    if (src.startsWith("data:")) {
-      const buf = dataUrlToUint8Array(src);
-      //@ts-ignore
-      if (buf.length) children.push(new Paragraph({ children: [ new ImageRun({ data: buf, transformation: { width: 520, height: 320 } }) ] }));
-    }
-  }
-
-  // Background
-  const bgAuto = S(form.backgroundAuto) || autoBackgroundImproved(form, (sectionPhotos?.background?.length ? sectionPhotos.background : sectionPhotos.fieldObservation) || []);
-  children.push(new Paragraph({ text: "2. Background", heading: HeadingLevel.HEADING_1 }));
-  const backgroundText = [ S(form.backgroundManual) , bgAuto ].filter(Boolean).join("\n\n");
-  if (backgroundText) backgroundText.split(/\n+/).forEach((t)=> children.push(new Paragraph({ children: [ new TextRun({ text: t }) ] })));
-
-  // Field Observation intro
-  children.push(new Paragraph({ text: "3. Field Observation", heading: HeadingLevel.HEADING_1 }));
-  if (S((form as any).fieldObservationText)) children.push(new Paragraph({ children: [ new TextRun({ text: S((form as any).fieldObservationText) }) ] }));
-
-  // Photos in the same order and continuous numbering
-  const seq: PhotoData[] = [];
-  (sectionPhotos.background || []).forEach((p)=>seq.push(p));
-  (sectionPhotos.fieldObservation || []).forEach((p)=>seq.push(p));
-  (sectionPhotos.additional || []).forEach((p)=>seq.push(p));
-  (sectionPhotos.equipment || []).forEach((p)=>seq.push(p));
-  const section1 = [ ...(sectionPhotos.work || []), ...(sectionPhotos.safety || []) ];
-  section1.forEach((p)=>seq.push(p));
-  let num = 1;
-  for (const p of seq) {
-    const cap = S(p.caption) || S(p.name) || "Photo";
-    children.push(new Paragraph({ children: [ new TextRun({ text: `Photo ${num}: ${cap}`, bold: true }) ] }));
-    let src = p.data;
-    if (src && src.startsWith("http")) { try { const d = await fetchToDataURL(src); if (d) src = d; } catch {} }
-    if (src && src.startsWith("data:")) {
-      const buf = dataUrlToUint8Array(src);
-      //@ts-ignore
-      if (buf.length) children.push(new Paragraph({ children: [ new ImageRun({ data: buf, transformation: { width: 520, height: 320 } }) ] }));
-    }
-    if (S(p.description)) children.push(new Paragraph({ children: [ new TextRun({ text: S(p.description) }) ] }));
-    num++;
-  }
-
-  // Conclusion + signature
-  children.push(new Paragraph({ text: "4. Conclusion", heading: HeadingLevel.HEADING_1 }));
-  const parts: string[] = [];
-  if (S(form.status)) parts.push(`Overall status: ${S(form.status)}.`);
-  if (S(form.scheduleCompliance)) parts.push(`Schedule: ${S(form.scheduleCompliance)}.`);
-  if (S(form.materialAvailability)) parts.push(`Materials: ${S(form.materialAvailability)}.`);
-  if (S(form.safetyCompliance)) parts.push(`Safety: ${S(form.safetyCompliance)}.`);
-  const extras = [S(form.additionalComments), S(form.inspectorSummary), S(form.recommendations)].filter(Boolean);
-  const concl = parts.concat(extras).filter(Boolean);
-  concl.forEach((t)=> children.push(new Paragraph({ children: [ new TextRun({ text: t }) ] })));
-  const sig = signatureData || (form as any).signatureData;
-  if (sig && String(sig).startsWith("data:")) {
-    const buf = dataUrlToUint8Array(sig as string);
-    //@ts-ignore
-    if (buf.length) children.push(new Paragraph({ children: [ new ImageRun({ data: buf, transformation: { width: 300, height: 120 } }) ] }));
-  }
-
-  const doc = new Document({ sections: [{ children }] });
-  const dateStr = new Date().toISOString().split("T")[0];
-  const nameBase = (S(form.reportId) || "report").replace(/[^\w.-]+/g, "_");
-  const blob = await Packer.toBlob(doc);
-  saveAs(blob, `ninekiwi_report_${nameBase}_${dateStr}.docx`);
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
 }
 
 /* --------------------------------- Save API -------------------------------- */
@@ -1643,8 +1416,4 @@ export async function saveReportToDatabase(
     throw error;
   }
 }
-
-<<<<<<< HEAD
-=======
-
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
+ 

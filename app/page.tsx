@@ -60,13 +60,7 @@ export default function LandingPage() {
             <div className="report-card-gradient rounded-3xl shadow-2xl overflow-hidden">
               <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 md:gap-12 p-8 md:p-16">
                 <div className="text-white z-10 animated-element">
-                  <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">
-<<<<<<< HEAD
-                    Report Generator Tool
-=======
-                    Free Report Generator
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
-                  </h2>
+                  <h2 className="text-3xl md:text-4xl font-heading font-bold mb-4">Report Generator Tool</h2>
                   <p className="text-lg text-kiwi-light mb-6">
                     Instantly generate professional PDF reports for your
                     construction projects.
@@ -89,11 +83,7 @@ export default function LandingPage() {
                     href={isAuthed ? "/pay" : "/login?callbackUrl=/pay"}
                     className="bg-white text-kiwi-dark hover:bg-kiwi-light font-bold py-3 px-8 rounded-full text-lg transition duration-300 transform hover:scale-105 w-fit inline-block"
                   >
-<<<<<<< HEAD
                     Report Generator Tool
-=======
-                    Try The Tool
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
                   </Link>
                 </div>
 

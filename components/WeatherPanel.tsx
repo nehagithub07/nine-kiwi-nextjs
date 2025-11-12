@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
@@ -54,10 +54,7 @@ function getWeatherDescription(code: number): string {
 export default function WeatherPanel({ form, onField, onFetched }: Props) {
   const [loading, setLoading] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
-<<<<<<< HEAD
   const [mounted, setMounted] = useState(false);
-=======
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
   const debTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastKeyRef = useRef<string>("");
   const lastAddrRef = useRef<string>("");
@@ -189,12 +186,9 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     }
   }, [form?.lat, form?.lon, fetchWeatherByCoords]);
 
-<<<<<<< HEAD
   // Ensure initial client render matches SSR by showing placeholders until mounted
   useEffect(() => { setMounted(true); }, []);
 
-=======
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
   const handleUseMyLocation = useCallback(() => {
     setErrMsg(null);
     if (!navigator.geolocation) {
@@ -217,7 +211,6 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
     );
   }, [fetchWeatherByCoords, onField]);
 
-<<<<<<< HEAD
   const readings = useMemo(() => {
     const vTemp = form?.temperature ? String(form.temperature) : FALLBACK;
     const vHum = form?.humidity ? String(form.humidity) : FALLBACK;
@@ -232,29 +225,7 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
       { label: "Conditions", value: gate(vDesc) },
     ];
   }, [mounted, form?.temperature, form?.humidity, form?.windSpeed, form?.weatherDescription]);
-=======
-  const readings = useMemo(
-    () => [
-      {
-        label: `Temperature (${TEMP_UNIT})`,
-        value: form?.temperature ? String(form.temperature) : FALLBACK,
-      },
-      {
-        label: "Humidity (%)",
-        value: form?.humidity ? String(form.humidity) : FALLBACK,
-      },
-      {
-        label: `Wind (${WIND_UNIT})`,
-        value: form?.windSpeed ? String(form.windSpeed) : FALLBACK,
-      },
-      {
-        label: "Conditions",
-        value: form?.weatherDescription ? String(form.weatherDescription) : FALLBACK,
-      },
-    ],
-    [form?.temperature, form?.humidity, form?.windSpeed, form?.weatherDescription]
-  );
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
+ 
 
   return (
     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 shadow-sm">
@@ -272,10 +243,8 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
         ))}
       </div>
 
-<<<<<<< HEAD
       {/* Location control buttons removed */}
       {errMsg && <div className="mt-2 text-xs font-medium text-red-600">{errMsg}</div>}
-=======
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -298,7 +267,7 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
 
         {errMsg && <span className="text-xs font-medium text-red-600">{errMsg}</span>}
       </div>
->>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
     </div>
   );
 }
+
