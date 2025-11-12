@@ -1,0 +1,102 @@
+[33m4459f51[m[33m ([m[1;36mHEAD[m[33m)[m Fixed-issues
+[33m44a63af[m fixed vercel issue
+[33mfb0820f[m make changes
+[33me320554[m VUpdated:
+[33m151bb74[m version updated
+[33mef1ef09[m fix: update node version to 20.x
+[33med9165b[m version
+[33m4da8ffe[m changed json
+[33me6b1aaa[m changed version
+[33m68fdab2[m Deleted extra files
+[33m35ad4c0[m UPDATED
+[33m2749c2c[m fixed vercel issue
+[33m32552a3[m Fixed google auth
+[33m440e118[m Fixed
+[33md26d142[m Updated all
+[33m6f62670[m Fixed
+[33mf2d99d4[m Added loading
+[33me99c5b9[m Fixed all bugs
+[33m15d1ae9[m fixed ui of report
+[33m9f938eb[m fixed error
+[33m3e8ef45[m Added some changes
+[33mcff5f17[m Update contact information formatting in README
+[33m42d42b6[m Google auth
+[33m7039b76[m Ugrade UI
+[33m3ca1385[m fixed build
+[33mfd47b8a[m fixed vercel issue
+[33m7dc2661[m chore: add Node version for Vercel
+[33m5130789[m make changes
+[33md49f4fa[m fixed payment option
+[33m8ec4182[m Merge branch 'main' of https://github.com/nehagithub07/nine-kiwi-nextjs
+[33m0416e7a[m Fixed errors
+[33m75d677c[m Update README.md
+[33mb927815[m Fixed Buggs
+[33mf0131c6[m Solved buggs
+[33m3534b5c[m Added Voice to text and some other features
+[33m4b7d78f[m Updated
+[33mc738230[m Admin panel
+[33mbafa003[m add login signup api
+[33me9d5c92[m Soemfilesaddedd
+[33mda7bd8a[m Added prisma_schema
+[33m28438b1[m Add DB middleware login/signup
+[33me02e01b[m Add Some More Features
+[33m673a2e1[m Up-to-date
+[33m143cdaa[m Updates
+[33mf2288f9[m Updated package-lock.json
+[33mf9f4a95[m New Feautres added
+[33mf7dd6a1[m Updated package-lock.json
+[33m89d5f59[m Updated .gitignore
+[33mc010181[m Updates
+[33m01c09c2[m first commit
+* [33m4459f51[m[33m ([m[1;36mHEAD[m[33m, [m[1;32mbackup-before-reset[m[33m)[m Fixed-issues
+* [33m44a63af[m fixed vercel issue
+* [33mfb0820f[m make changes
+* [33me320554[m VUpdated:
+* [33m151bb74[m version updated
+* [33mef1ef09[m fix: update node version to 20.x
+* [33med9165b[m version
+* [33m4da8ffe[m changed json
+* [33me6b1aaa[m changed version
+* [33m68fdab2[m Deleted extra files
+* [33m35ad4c0[m UPDATED
+* [33m2749c2c[m fixed vercel issue
+* [33m32552a3[m Fixed google auth
+* [33m440e118[m Fixed
+* [33md26d142[m Updated all
+* [33m6f62670[m Fixed
+* [33mf2d99d4[m Added loading
+* [33me99c5b9[m Fixed all bugs
+* [33m15d1ae9[m fixed ui of report
+* [33m9f938eb[m fixed error
+* [33m3e8ef45[m Added some changes
+* [33mcff5f17[m Update contact information formatting in README
+* [33m42d42b6[m Google auth
+* [33m7039b76[m Ugrade UI
+* [33m3ca1385[m fixed build
+* [33mfd47b8a[m fixed vercel issue
+* [33m7dc2661[m chore: add Node version for Vercel
+* [33m5130789[m make changes
+* [33md49f4fa[m fixed payment option
+*   [33m8ec4182[m Merge branch 'main' of https://github.com/nehagithub07/nine-kiwi-nextjs
+[32m|[m[33m\[m  
+[32m|[m * [33m75d677c[m Update README.md
+* [33m|[m [33m0416e7a[m Fixed errors
+[33m|[m[33m/[m  
+* [33mb927815[m Fixed Buggs
+* [33mf0131c6[m Solved buggs
+* [33m3534b5c[m Added Voice to text and some other features
+* [33m4b7d78f[m Updated
+* [33mc738230[m Admin panel
+* [33mbafa003[m add login signup api
+* [33me9d5c92[m Soemfilesaddedd
+* [33mda7bd8a[m Added prisma_schema
+* [33m28438b1[m Add DB middleware login/signup
+* [33me02e01b[m Add Some More Features
+* [33m673a2e1[m Up-to-date
+* [33m143cdaa[m Updates
+* [33mf2288f9[m Updated package-lock.json
+* [33mf9f4a95[m New Feautres added
+* [33mf7dd6a1[m Updated package-lock.json
+* [33m89d5f59[m Updated .gitignore
+* [33mc010181[m Updates
+* [33m01c09c2[m first commit
