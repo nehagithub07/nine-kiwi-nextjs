@@ -92,7 +92,13 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
       input.style.top = "-10000px";
       document.body.appendChild(input);
       input.onchange = (ev: any) => {
-        try { addFiles(ev.target.files); } finally { input.remove(); }
+        try {
+          ev?.preventDefault?.();
+          ev?.stopPropagation?.();
+          addFiles(ev.target.files);
+        } finally {
+          input.remove();
+        }
       };
       input.click();
     } catch {
@@ -158,6 +164,10 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
         multiple
         className="hidden"
         onChange={(e) => {
+          try {
+            e.preventDefault();
+            e.stopPropagation();
+          } catch {}
           addFiles(e.target.files);
           e.currentTarget.value = "";
         }}

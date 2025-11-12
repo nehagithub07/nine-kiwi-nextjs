@@ -243,30 +243,8 @@ export default function WeatherPanel({ form, onField, onFetched }: Props) {
         ))}
       </div>
 
-      {/* Location control buttons removed */}
+      {/* Action buttons explicitly removed per request */}
       {errMsg && <div className="mt-2 text-xs font-medium text-red-600">{errMsg}</div>}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={fetchByAddress}
-          disabled={loading || !addressQuery}
-          title={addressQuery ? `Use address: ${addressQuery}` : "Enter address fields first"}
-        >
-          Use address
-        </button>
-
-        <button
-          type="button"
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
-          onClick={handleUseMyLocation}
-          disabled={loading}
-        >
-          Use my location
-        </button>
-
-        {errMsg && <span className="text-xs font-medium text-red-600">{errMsg}</span>}
-      </div>
     </div>
   );
 }
