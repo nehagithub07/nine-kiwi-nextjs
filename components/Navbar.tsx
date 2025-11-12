@@ -82,8 +82,8 @@ export default function Navbar() {
   return (
     hideOnReport ? null : (
     <>
-    <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#78c850]/20 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-sm">
-      <nav className="container mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="fixed top-0 left-0 right-0 z-50 w-full border-b border-[#78c850]/20 bg-white/90 backdrop-blur-md supports-[backdrop-filter]:bg-white/80 shadow-sm overflow-x-hidden">
+      <nav className="container mx-auto px-3 sm:px-6 lg:px-8 h-14 md:h-16 flex items-center justify-between gap-2">
         {/* Logo - Fixed sizing for mobile */}
         <Link href="/" className="flex items-center gap-2 group shrink-0" aria-label="Ninekiwi Home">
           <div className="relative">
@@ -97,7 +97,7 @@ export default function Navbar() {
             />
             <div className="absolute inset-0 bg-[#78c850]/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
-          <span className="text-xl sm:text-2xl font-heading font-extrabold tracking-tight">
+          <span className="hidden sm:block text-xl sm:text-2xl font-heading font-extrabold tracking-tight truncate max-w-[40vw]">
             <span className="text-gray-800">nine</span>
             <span className="bg-gradient-to-r from-[#78c850] to-[#78c850] bg-clip-text text-transparent">kiwi</span>
           </span>
@@ -235,7 +235,7 @@ export default function Navbar() {
 
         {/* Mobile Menu Button - Properly spaced */}
         <button
-          className="md:hidden text-[#78c850] p-2 rounded-xl hover:bg-[#78c850]/5 transition-colors flex items-center justify-center shrink-0"
+          className="md:hidden text-[#78c850] p-2 rounded-xl hover:bg-[#78c850]/5 transition-colors flex items-center justify-center shrink-0 ml-2"
           onClick={() => setOpen((o) => !o)}
           aria-label="Toggle menu"
           aria-expanded={open}
@@ -334,7 +334,7 @@ export default function Navbar() {
         </div>
       </div>
     </header>
-    <div className="h-16" aria-hidden="true" />
+    <div className="h-14 md:h-16" aria-hidden="true" />
     </>
     )
   );
