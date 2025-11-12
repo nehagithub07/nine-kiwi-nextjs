@@ -30,6 +30,7 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
         (file) =>
           new Promise<UPhoto>((res) => {
             const r = new FileReader();
+<<<<<<< HEAD
             r.onload = async () => {
               try {
                 const src = String(r.result || "");
@@ -62,6 +63,9 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
                 res({ name: file.name, data: String(r.result || ""), section });
               }
             };
+=======
+            r.onload = () => res({ name: file.name, data: String(r.result || ""), section });
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
             r.readAsDataURL(file);
           })
       );
@@ -83,6 +87,7 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
     try {
       const input = document.createElement("input");
       input.type = "file";
+<<<<<<< HEAD
       // Prefer opening camera on mobile devices
       input.accept = "image/*;capture=camera";
       // @ts-ignore
@@ -94,6 +99,12 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
       input.onchange = (ev: any) => {
         try { addFiles(ev.target.files); } finally { input.remove(); }
       };
+=======
+      input.accept = "image/*";
+      // @ts-ignore
+      input.capture = "environment";
+      input.onchange = (ev: any) => addFiles(ev.target.files);
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
       input.click();
     } catch {
       fileRef.current?.click();
@@ -121,7 +132,10 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
 
       <div className="flex gap-2 mb-6">
         <button
+<<<<<<< HEAD
           type="button"
+=======
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
           onClick={() => fileRef.current?.click()}
           className="flex-1 bg-kiwi-green text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#78c850] transition-all hover:scale-105 flex items-center justify-center gap-2"
         >
@@ -131,7 +145,10 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
           Add photo
         </button>
         <button
+<<<<<<< HEAD
           type="button"
+=======
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
           onClick={captureFromCamera}
           className="flex-1 bg-[#78c850] text-white px-4 py-3 rounded-lg font-semibold hover:bg-[#78c850] transition-all hover:scale-105 flex items-center justify-center gap-2"
         >
@@ -151,20 +168,27 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
       <input
         ref={fileRef}
         type="file"
+<<<<<<< HEAD
         // Hint to open camera directly on mobile (iOS/Android)
         accept="image/*;capture=camera"
         // @ts-ignore
         capture="environment"
+=======
+        accept="image/*"
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
         multiple
         className="hidden"
         onChange={(e) => {
           addFiles(e.target.files);
           e.currentTarget.value = "";
         }}
+<<<<<<< HEAD
         onKeyDown={(e) => {
           // Prevent accidental form submissions on Enter in rare wrappers
           e.preventDefault();
         }}
+=======
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
       />
 
       <div className="space-y-4">
@@ -186,7 +210,10 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
                   Photo {p.figureNumber ?? idx + 1}
                 </span>
                 <button
+<<<<<<< HEAD
                   type="button"
+=======
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
                   onClick={() => removeAt(idx)}
                   aria-label={`Remove photo ${idx + 1}`}
                   className="text-red-500 hover:text-red-700 font-semibold text-sm bg-red-50 px-3 py-1 rounded-lg hover:bg-red-100 transition-colors"
@@ -224,3 +251,9 @@ export default function SectionPhotos({ title, photos, setPhotos, summaryToggle,
 
 
 
+<<<<<<< HEAD
+=======
+
+
+
+>>>>>>> 01ca953cebec308036f0219d017b0b68ffd7749a
